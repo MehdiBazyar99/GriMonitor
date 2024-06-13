@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Variables
-REPO_URL="https://raw.githubusercontent.com/yourusername/yourrepository/main/uptime_monitor.py"
+REPO_URL="https://raw.githubusercontent.com/MehdiBazyar99/GriMonitor/main/uptime_monitor.py"
 SCRIPT_NAME="uptime_monitor.py"
 LINK_NAME="/usr/local/bin/Grimonitor"
 
