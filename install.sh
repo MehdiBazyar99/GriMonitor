@@ -6,7 +6,13 @@ SCRIPT_NAME="uptime_monitor.py"
 WRAPPER_SCRIPT="/usr/local/bin/Grimonitor"
 VENV_DIR="venv"
 
-# Download the Python script
+# Remove old version of the script, virtual environment, and wrapper script if they exist
+echo "Removing old version of the script, virtual environment, and wrapper script if they exist..."
+[ -f $SCRIPT_NAME ] && rm $SCRIPT_NAME
+[ -d $VENV_DIR ] && rm -rf $VENV_DIR
+[ -f $WRAPPER_SCRIPT ] && sudo rm $WRAPPER_SCRIPT
+
+# Download the new Python script
 echo "Downloading uptime_monitor.py from GitHub..."
 curl -o $SCRIPT_NAME $REPO_URL
 
@@ -32,12 +38,6 @@ pip install requests schedule
 
 # Deactivate the virtual environment
 deactivate
-
-# Remove existing wrapper script if it exists
-if [ -f $WRAPPER_SCRIPT ]; then
-    echo "Removing existing wrapper script..."
-    sudo rm $WRAPPER_SCRIPT
-fi
 
 # Create a wrapper script to run the Python script with the virtual environment's Python interpreter
 echo "Creating wrapper script..."
