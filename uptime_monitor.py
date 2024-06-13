@@ -5,47 +5,66 @@ import requests
 import schedule
 import time
 import subprocess
+from getpass import getpass
 
 def install_packages():
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "schedule"])
-
-install_packages()
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "schedule"])
+    except subprocess.CalledProcessError as e:
+        print(f"Error installing packages: {e}")
+        sys.exit(1)
 
 def config_menu(update=False):
-    if update and os.path.exists("config.txt"):
-        config = read_config()
-        ip = input(f"Enter the IP address to monitor [{config['ip']}]: ") or config['ip']
-        port = input(f"Enter the port to monitor [{config['port']}]: ") or config['port']
-        interval = input(f"Enter the interval in minutes [{config['interval']}]: ") or config['interval']
-        bot_token = input(f"Enter the Telegram bot token [{config['bot_token']}]: ") or config['bot_token']
-        chat_id = input(f"Enter the Telegram chat ID [{config['chat_id']}]: ") or config['chat_id']
-    else:
-        ip = input("Enter the IP address to monitor: ")
-        port = input("Enter the port to monitor: ")
-        interval = input("Enter the interval in minutes: ")
-        bot_token = input("Enter the Telegram bot token: ")
-        chat_id = input("Enter the Telegram chat ID: ")
+    try:
+        if update and os.path.exists("config.txt"):
+            config = read_config()
+            ip = input(f"Enter the IP address to monitor [{config['ip']}]: ") or config['ip']
+            port = input(f"Enter the port to monitor [{config['port']}]: ") or config['port']
+            interval = input(f"Enter the interval in minutes [{config['interval']}]: ") or config['interval']
+            bot_token = getpass(f"Enter the Telegram bot token [{config['bot_token']}]: ") or config['bot_token']
+            chat_id = input(f"Enter the Telegram chat ID [{config['chat_id']}]: ") or config['chat_id']
+        else:
+            ip = input("Enter the IP address to monitor: ")
+            port = input("Enter the port to monitor: ")
+            interval = input("Enter the interval in minutes: ")
+            bot_token = getpass("Enter the Telegram bot token: ")
+            chat_id = input("Enter the Telegram chat ID: ")
 
-    with open("config.txt", "w") as config_file:
-        config_file.write(f"{ip}\n{port}\n{interval}\n{bot_token}\n{chat_id}")
+        try:
+            port = int(port)
+            interval = int(interval)
+        except ValueError:
+            print("Invalid input for port or interval. Please enter valid numbers.")
+            return
 
-    print("Configuration saved.")
+        with open("config.txt", "w") as config_file:
+            config_file.write(f"{ip}\n{port}\n{interval}\n{bot_token}\n{chat_id}")
+        print("Configuration saved.")
+    except Exception as e:
+        print(f"Error during configuration: {e}")
 
 def read_config():
-    with open("config.txt", "r") as config_file:
-        lines = config_file.readlines()
-        return {
-            "ip": lines[0].strip(),
-            "port": int(lines[1].strip()),
-            "interval": int(lines[2].strip()),
-            "bot_token": lines[3].strip(),
-            "chat_id": lines[4].strip()
-        }
+    try:
+        with open("config.txt", "r") as config_file:
+            lines = config_file.readlines()
+            return {
+                "ip": lines[0].strip(),
+                "port": int(lines[1].strip()),
+                "interval": int(lines[2].strip()),
+                "bot_token": lines[3].strip(),
+                "chat_id": lines[4].strip()
+            }
+    except (FileNotFoundError, IndexError, ValueError):
+        print("Error reading configuration file. Please run 'Grimonitor install' first.")
+        sys.exit(1)
 
 def send_telegram_message(bot_token, chat_id, message):
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    data = {"chat_id": chat_id, "text": message}
-    requests.post(url, data=data)
+    try:
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        data = {"chat_id": chat_id, "text": message}
+        requests.post(url, data=data)
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending Telegram message: {e}")
 
 def check_connection(ip, port, bot_token, chat_id):
     try:
@@ -54,34 +73,56 @@ def check_connection(ip, port, bot_token, chat_id):
         send_telegram_message(bot_token, chat_id, f"Connection to {ip}:{port} failed: {str(e)}")
 
 def monitor():
-    config = read_config()
-    schedule.every(config["interval"]).minutes.do(
-        check_connection, config["ip"], config["port"], config["bot_token"], config["chat_id"]
-    )
+    try:
+        config = read_config()
+        schedule.every(config["interval"]).minutes.do(
+            check_connection, config["ip"], config["port"], config["bot_token"], config["chat_id"]
+        )
+        print("Monitoring started. Press Ctrl+C to stop.")
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Monitoring stopped.")
 
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
+def print_menu():
+    print("GriMonitor Uptime Monitor")
+    print("1. Install")
+    print("2. Start")
+    print("3. Update")
+    print("4. Uninstall")
+    print("5. Exit")
 
 def main():
-    if len(sys.argv) > 1:
-        command = sys.argv[1]
-        if command == "install":
+    install_packages()
+
+    while True:
+        print_menu()
+        choice = input("Enter your choice (1-5): ")
+
+        if choice == "1":
             config_menu()
-        elif command == "start":
-            monitor()
-        elif command == "update":
-            config_menu(update=True)
-        elif command == "uninstall":
+        elif choice == "2":
+            if os.path.exists("config.txt"):
+                monitor()
+            else:
+                print("Please run 'Grimonitor install' first.")
+        elif choice == "3":
+            if os.path.exists("config.txt"):
+                config_menu(update=True)
+            else:
+                print("Please run 'Grimonitor install' first.")
+        elif choice == "4":
             if os.path.exists("config.txt"):
                 os.remove("config.txt")
                 print("Uninstalled.")
             else:
                 print("No configuration file found.")
+        elif choice == "5":
+            print("Exiting...")
+            break
         else:
-            print("Unknown command.")
-    else:
-        print("Usage: python uptime_monitor.py [install|start|update|uninstall]")
+            print("Invalid choice. Please try again.")
 
 if __name__ == "__main__":
     main()
