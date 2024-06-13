@@ -3,7 +3,7 @@
 # Variables
 REPO_URL="https://raw.githubusercontent.com/MehdiBazyar99/GriMonitor/main/uptime_monitor.py"
 SCRIPT_NAME="uptime_monitor.py"
-LINK_NAME="/usr/local/bin/Grimonitor"
+WRAPPER_SCRIPT="/usr/local/bin/Grimonitor"
 
 # Download the Python script
 echo "Downloading uptime_monitor.py from GitHub..."
@@ -16,17 +16,17 @@ chmod +x $SCRIPT_NAME
 echo "Installing required Python packages..."
 python3 -m pip install requests schedule
 
-# Remove existing symbolic link if it exists
-if [ -L $LINK_NAME ]; then
-    echo "Removing existing symbolic link..."
-    sudo rm $LINK_NAME
+# Remove existing wrapper script if it exists
+if [ -f $WRAPPER_SCRIPT ]; then
+    echo "Removing existing wrapper script..."
+    sudo rm $WRAPPER_SCRIPT
 fi
 
 # Create a wrapper script to run the Python script with the Python interpreter
 echo "Creating wrapper script..."
-echo -e "#!/bin/bash\npython3 $(pwd)/$SCRIPT_NAME \"\$@\"" | sudo tee $LINK_NAME > /dev/null
+echo -e "#!/bin/bash\n/usr/bin/python3 $(pwd)/$SCRIPT_NAME \"\$@\"" | sudo tee $WRAPPER_SCRIPT > /dev/null
 
 # Set executable permission for the wrapper script
-sudo chmod +x $LINK_NAME
+sudo chmod +x $WRAPPER_SCRIPT
 
 echo "Installation complete. You can now use the command 'Grimonitor' to manage the uptime monitor."
