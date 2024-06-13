@@ -33,7 +33,7 @@ source $VENV_DIR/bin/activate
 
 # Install required Python packages in the virtual environment
 echo "Installing required Python packages..."
-pip install requests schedule
+pip install requests schedule python-telegram-bot
 
 # Deactivate the virtual environment
 deactivate
