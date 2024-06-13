@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Variables
 REPO_URL="https://raw.githubusercontent.com/MehdiBazyar99/GriMonitor/main/uptime_monitor.py"
 SCRIPT_NAME="uptime_monitor.py"
@@ -41,7 +40,7 @@ deactivate
 
 # Create a wrapper script to run the Python script with the virtual environment's Python interpreter
 echo "Creating wrapper script..."
-echo -e "#!/bin/bash\n$(pwd)/$VENV_DIR/bin/python $(pwd)/$SCRIPT_NAME \"\$@\"" | sudo tee $WRAPPER_SCRIPT > /dev/null
+echo -e "#!/bin/bash\n$(pwd)/$VENV_DIR/bin/python $(pwd)/$SCRIPT_NAME" | sudo tee $WRAPPER_SCRIPT > /dev/null
 
 # Set executable permission for the wrapper script
 sudo chmod +x $WRAPPER_SCRIPT
