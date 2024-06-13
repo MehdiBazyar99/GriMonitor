@@ -16,11 +16,11 @@ chmod +x $SCRIPT_NAME
 echo "Installing required Python packages..."
 python3 -m pip install requests schedule
 
-# Create a symbolic link
-echo "Creating symbolic link..."
-sudo ln -s "$(pwd)/$SCRIPT_NAME" $LINK_NAME
+# Create a wrapper script to run the Python script with the Python interpreter
+echo "Creating wrapper script..."
+echo -e "#!/bin/bash\npython3 $(pwd)/$SCRIPT_NAME \"\$@\"" > /usr/local/bin/Grimonitor
 
-# Set executable permission for the symbolic link
-sudo chmod +x $LINK_NAME
+# Set executable permission for the wrapper script
+sudo chmod +x /usr/local/bin/Grimonitor
 
 echo "Installation complete. You can now use the command 'Grimonitor' to manage the uptime monitor."
