@@ -4,6 +4,7 @@ A simple uptime monitor script that pings a specified IP and port and sends noti
 
 ## Installation
 
-1. Download the installation script:
-   ```sh
-   curl -O https://raw.githubusercontent.com/yourusername/yourrepository/main/install.sh
+To install the script, run the following command:
+
+```sh
+bash <(curl -Ls https://raw.githubusercontent.com/yourusername/yourrepository/main/install.sh)
