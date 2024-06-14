@@ -5,16 +5,17 @@ import requests
 import schedule
 import time
 import subprocess
-import logging
 from getpass import getpass
 from threading import Thread, Event
 from daemon import DaemonContext
 from daemon.pidfile import PIDLockFile
+import logging
 
-# Logging setup
+# Setup logging
 logging.basicConfig(filename='/tmp/grimonitor.log', level=logging.DEBUG, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
+# Constants for menu
 MENU_HEADER = "\033[96m┌────────────────────────────────────────────────────────────────────────────┐\033[0m"
 MENU_FOOTER = "\033[96m└────────────────────────────────────────────────────────────────────────────┘\033[0m"
 MENU_TITLE = "\033[96m│                          \033[93mGriMonitor Uptime Monitor\033[96m                         │\033[0m"
@@ -30,6 +31,7 @@ MENU_OPTIONS = [
     "\033[96m│ \033[92m8. Exit                                                                    \033[96m│\033[0m"
 ]
 
+
 def install_packages():
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "schedule", "python-daemon"])
@@ -38,6 +40,7 @@ def install_packages():
         logging.error(f"Error installing packages: {e}")
         print(f"\033[91mError installing packages: {e}\033[0m")
         sys.exit(1)
+
 
 def config_menu(monitor_thread, stop_event):
     try:
@@ -57,8 +60,8 @@ def config_menu(monitor_thread, stop_event):
             port = int(port)
             interval = int(interval)
         except ValueError:
+            logging.error("Invalid input for port or interval. Please enter valid numbers.")
             print("\033[91mInvalid input for port or interval. Please enter valid numbers.\033[0m")
-            logging.warning("Invalid input for port or interval. Configuration not saved.")
             return monitor_thread, stop_event
 
         new_config = {
@@ -94,6 +97,7 @@ def config_menu(monitor_thread, stop_event):
 
     print(MENU_FOOTER)
     return monitor_thread, stop_event
+
 
 def success_notification_menu():
     while True:
@@ -135,12 +139,13 @@ def success_notification_menu():
             elif choice == "3":
                 return
             else:
-                print("\033[91mInvalid choice. Please try again.\033[0m")
                 logging.warning("Invalid choice in success notification menu.")
+                print("\033[91mInvalid choice. Please try again.\033[0m")
 
         except Exception as e:
             logging.error(f"Error during success notification configuration: {e}")
             print(f"\033[91mError during success notification configuration: {e}\033[0m")
+
 
 def read_config():
     try:
@@ -157,14 +162,20 @@ def read_config():
         logging.warning(f"Error reading config: {e}")
         return {}
 
+
 def send_telegram_message(bot_token, chat_id, message):
     try:
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         data = {"chat_id": chat_id, "text": message}
-        requests.post(url, data=data)
-        logging.info(f"Sent message to Telegram chat {chat_id}.")
+        response = requests.post(url, data=data)
+        if response.status_code == 200:
+            logging.info(f"Telegram message sent successfully to chat_id {chat_id}.")
+        else:
+            logging.error(f"Failed to send Telegram message: {response.text}")
     except requests.exceptions.RequestException as e:
         logging.error(f"Error sending Telegram message: {e}")
+        print(f"\033[91mError sending Telegram message: {e}\033[0m")
+
 
 def check_connection(stop_event):
     while not stop_event.is_set():
@@ -173,15 +184,15 @@ def check_connection(stop_event):
 
         try:
             telnetlib.Telnet(config["ip"], config["port"], timeout=10)
-            logging.info(f"Connection to {config['ip']}:{config['port']} is successful.")
-            send_telegram_message(config["bot_token"], config["chat_id"],
-                                  f"Connection to {config['ip']}:{config['port']} is successful.")
+            if success_config["enabled"]:
+                send_telegram_message(config["bot_token"], config["chat_id"], f"Connection to {config['ip']}:{config['port']} is successful.")
+            logging.info(f"Connection to {config['ip']}:{config['port']} successful.")
         except Exception as e:
             logging.error(f"Connection to {config['ip']}:{config['port']} failed: {str(e)}")
-            send_telegram_message(config["bot_token"], config["chat_id"],
-                                  f"Connection to {config['ip']}:{config['port']} failed: {str(e)}")
+            send_telegram_message(config["bot_token"], config["chat_id"], f"Connection to {config['ip']}:{config['port']} failed: {str(e)}")
 
         time.sleep(config["interval"] * 60)
+
 
 def read_success_config():
     try:
@@ -198,6 +209,7 @@ def read_success_config():
             "interval": 60
         }
 
+
 def get_script_status(monitor_thread):
     if not os.path.exists("config.txt"):
         return "Not Configured"
@@ -205,6 +217,7 @@ def get_script_status(monitor_thread):
         return "Stopped"
     else:
         return "Running"
+
 
 def print_menu(script_status):
     print(MENU_HEADER)
@@ -214,6 +227,7 @@ def print_menu(script_status):
     for option in MENU_OPTIONS:
         print(option)
     print(MENU_FOOTER)
+
 
 def uninstall():
     try:
@@ -239,6 +253,7 @@ def uninstall():
         logging.error(f"Error during uninstallation: {e}")
         print(f"\033[91mError during uninstallation: {e}\033[0m")
 
+
 def view_current_config():
     config = read_config()
     if config:
@@ -247,14 +262,14 @@ def view_current_config():
         print(MENU_SEPARATOR)
         print(f"\033[96m│ \033[92mIP Address: {config['ip']:<53}\033[96m│\033[0m")
         print(f"\033[96m│ \033[92mPort: {config['port']:<57}\033[96m│\033[0m")
-        print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<40}\033[0m│\033[0m")
-        print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[0m│\033[0m")
-        print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']:<48}\033[0m│\033[0m")
+        print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<40}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']:<48}\033[96m│\033[0m")
         print(MENU_FOOTER)
-        logging.info("Current configuration viewed.")
     else:
         logging.warning("No configuration found. Please configure GriMonitor first.")
         print("\033[91mNo configuration found. Please configure GriMonitor first.\033[0m")
+
 
 def view_realtime_operation(monitor_thread):
     if monitor_thread is None or not monitor_thread.is_alive():
@@ -272,20 +287,19 @@ def view_realtime_operation(monitor_thread):
             try:
                 telnetlib.Telnet(config["ip"], config["port"], timeout=10)
                 print(f"\033[92mConnection to {config['ip']}:{config['port']} is successful.\033[0m")
-                logging.info(f"Connection to {config['ip']}:{config['port']} is successful.")
             except Exception as e:
                 print(f"\033[91mConnection to {config['ip']}:{config['port']} failed: {str(e)}\033[0m")
-                logging.error(f"Connection to {config['ip']}:{config['port']} failed: {str(e)}")
 
             time.sleep(1)  # Adjust the sleep time as needed for better responsiveness
     except KeyboardInterrupt:
         logging.info("Exiting real-time operation view.")
         print("\033[96mExiting real-time operation view.\033[0m")
 
+
 def start_monitoring_daemon(stop_event):
-    with DaemonContext(pidfile=PIDLockFile('/tmp/monitoring_daemon.pid')):
-        logging.info("Daemon started.")
+    with DaemonContext(pidfile=PIDLockFile('/tmp/grimonitor.pid')):
         check_connection(stop_event)
+
 
 def main():
     install_packages()
@@ -341,7 +355,7 @@ def main():
                 print("\033[92mExiting...\033[0m")
                 break
             else:
-                logging.warning("Invalid choice entered in main menu.")
+                logging.warning("Invalid choice in main menu.")
                 print("\033[91mInvalid choice. Please try again.\033[0m")
     except KeyboardInterrupt:
         if monitor_thread is not None and monitor_thread.is_alive():
@@ -349,6 +363,7 @@ def main():
             monitor_thread.join(timeout=5)
         logging.info("Exiting GriMonitor due to keyboard interrupt.")
         print("\033[92mExiting...\033[0m")
+
 
 if __name__ == "__main__":
     main()
