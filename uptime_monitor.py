@@ -40,7 +40,7 @@ def config_menu():
             print(MENU_SEPARATOR)
             print(f"\033[96m│ \033[92mIP Address: {config['ip']:<53}\033[96m│\033[0m")
             print(f"\033[96m│ \033[92mPort: {config['port']:<57}\033[96m│\033[0m")
-            print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<33}\033[96m│\033[0m")
+            print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<40}\033[96m│\033[0m")
             print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[96m│\033[0m")
             print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']:<48}\033[96m│\033[0m")
             print(MENU_FOOTER)
@@ -65,50 +65,60 @@ def config_menu():
             with open("config.txt", "w") as config_file:
                 config_file.write(f"{ip}\n{port}\n{interval}\n{bot_token}\n{chat_id}")
             print("\033[92mConfiguration saved.\033[0m")
+
+            global monitor_thread, stop_event
+            if monitor_thread is not None and monitor_thread.is_alive():
+                stop_event.set()
+                monitor_thread.join()
+                stop_event.clear()
+                monitor_thread = Thread(target=check_connection, args=(stop_event,))
+                monitor_thread.start()
+                print("\033[92mMonitoring restarted with the new configuration.\033[0m")
+
     except Exception as e:
         print(f"\033[91mError during configuration: {e}\033[0m")
 
 
 def success_notification_menu():
-    try:
-        if os.path.exists("success_config.txt"):
-            with open("success_config.txt", "r") as config_file:
-                enabled, interval = config_file.read().split("\n")
-                enabled = enabled.lower() == "true"
-                interval = int(interval)
-        else:
-            enabled = False
-            interval = 60
+    while True:
+        try:
+            if os.path.exists("success_config.txt"):
+                with open("success_config.txt", "r") as config_file:
+                    enabled, interval = config_file.read().split("\n")
+                    enabled = enabled.lower() == "true"
+                    interval = int(interval)
+            else:
+                enabled = False
+                interval = 60
 
-        print(MENU_HEADER)
-        print("\033[96m│                     \033[93mSuccess Notification Configuration\033[96m                    │\033[0m")
-        print(MENU_SEPARATOR)
-        print(f"\033[96m│ \033[92mEnabled: {str(enabled):<57}\033[96m│\033[0m")
-        print(f"\033[96m│ \033[92mInterval: {interval} minutes{' ':<43}\033[96m│\033[0m")
-        print(MENU_SEPARATOR)
-        print("\033[96m│ \033[92m1. Enable/Disable                                                          \033[96m│\033[0m")
-        print("\033[96m│ \033[92m2. Set Interval                                                            \033[96m│\033[0m")
-        print("\033[96m│ \033[92m3. Back                                                                    \033[96m│\033[0m")
-        print(MENU_FOOTER)
+            print(MENU_HEADER)
+            print("\033[96m│                     \033[93mSuccess Notification Configuration\033[96m                    │\033[0m")
+            print(MENU_SEPARATOR)
+            print(f"\033[96m│ \033[92mEnabled: {str(enabled):<57}\033[96m│\033[0m")
+            print(f"\033[96m│ \033[92mInterval: {interval} minutes{' ':<43}\033[96m│\033[0m")
+            print(MENU_SEPARATOR)
+            print("\033[96m│ \033[92m1. Enable/Disable                                                          \033[96m│\033[0m")
+            print("\033[96m│ \033[92m2. Set Interval                                                            \033[96m│\033[0m")
+            print("\033[96m│ \033[92m3. Back                                                                    \033[96m│\033[0m")
+            print(MENU_FOOTER)
 
-        choice = input("\033[94mEnter your choice (1-3): \033[0m")
+            choice = input("\033[94mEnter your choice (1-3): \033[0m")
 
-        if choice == "1":
-            enabled = not enabled
-            print(f"\033[92mSuccess notifications {'enabled' if enabled else 'disabled'}.\033[0m")
-        elif choice == "2":
-            interval = int(input("\033[94mEnter the success notification interval in minutes: \033[0m"))
-            print(f"\033[92mSuccess notification interval set to {interval} minutes.\033[0m")
-        elif choice == "3":
-            return
-        else:
-            print("\033[91mInvalid choice. Please try again.\033[0m")
+            if choice == "1":
+                enabled = not enabled
+                print(f"\033[92mSuccess notifications {'enabled' if enabled else 'disabled'}.\033[0m")
+            elif choice == "2":
+                interval = int(input("\033[94mEnter the success notification interval in minutes: \033[0m"))
+                print(f"\033[92mSuccess notification interval set to {interval} minutes.\033[0m")
+            elif choice == "3":
+                with open("success_config.txt", "w") as config_file:
+                    config_file.write(f"{enabled}\n{interval}")
+                return
+            else:
+                print("\033[91mInvalid choice. Please try again.\033[0m")
 
-        with open("success_config.txt", "w") as config_file:
-            config_file.write(f"{enabled}\n{interval}")
-
-    except Exception as e:
-        print(f"\033[91mError during success notification configuration: {e}\033[0m")
+        except Exception as e:
+            print(f"\033[91mError during success notification configuration: {e}\033[0m")
 
 
 def read_config():
@@ -215,7 +225,7 @@ def view_current_config():
         print(MENU_SEPARATOR)
         print(f"\033[96m│ \033[92mIP Address: {config['ip']:<53}\033[96m│\033[0m")
         print(f"\033[96m│ \033[92mPort: {config['port']:<57}\033[96m│\033[0m")
-        print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<33}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<40}\033[96m│\033[0m")
         print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[96m│\033[0m")
         print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']:<48}\033[96m│\033[0m")
         print(MENU_FOOTER)
