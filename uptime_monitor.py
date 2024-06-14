@@ -18,8 +18,9 @@ MENU_OPTIONS = [
     "\033[96m│ \033[92m3. Stop                                                                    \033[96m│\033[0m",
     "\033[96m│ \033[92m4. Success Notification Configuration                                      \033[96m│\033[0m",
     "\033[96m│ \033[92m5. View Current Configuration                                              \033[96m│\033[0m",
-    "\033[96m│ \033[92m6. Uninstall                                                               \033[96m│\033[0m",
-    "\033[96m│ \033[92m7. Exit                                                                    \033[96m│\033[0m"
+    "\033[96m│ \033[92m6. View Real-time Operation                                                \033[96m│\033[0m",
+    "\033[96m│ \033[92m7. Uninstall                                                               \033[96m│\033[0m",
+    "\033[96m│ \033[92m8. Exit                                                                    \033[96m│\033[0m"
 ]
 
 
@@ -31,8 +32,7 @@ def install_packages():
         sys.exit(1)
 
 
-def config_menu():
-    global monitor_thread, stop_event
+def config_menu(monitor_thread, stop_event):
     try:
         if os.path.exists("config.txt"):
             config = read_config()
@@ -69,7 +69,7 @@ def config_menu():
 
             if monitor_thread is not None and monitor_thread.is_alive():
                 stop_event.set()
-                monitor_thread.join()
+                monitor_thread.join(timeout=5)
                 stop_event.clear()
                 monitor_thread = Thread(target=check_connection, args=(stop_event,), daemon=True)
                 monitor_thread.start()
@@ -77,6 +77,8 @@ def config_menu():
 
     except Exception as e:
         print(f"\033[91mError during configuration: {e}\033[0m")
+
+    return monitor_thread, stop_event
 
 
 def success_notification_menu():
@@ -235,6 +237,29 @@ def view_current_config():
         print("\033[91mNo configuration found. Please configure GriMonitor first.\033[0m")
 
 
+def view_realtime_operation(monitor_thread):
+    if monitor_thread is None or not monitor_thread.is_alive():
+        print("\033[91mMonitoring is not currently running. Please start monitoring to view real-time operation.\033[0m")
+        return
+
+    print("\033[92mReal-time Operation:\033[0m")
+    print("\033[96mPress Ctrl+C to exit.\033[0m")
+
+    config = read_config()
+
+    try:
+        while True:
+            try:
+                telnetlib.Telnet(config["ip"], config["port"], timeout=10)
+                print(f"\033[92mConnection to {config['ip']}:{config['port']} is successful.\033[0m")
+            except Exception as e:
+                print(f"\033[91mConnection to {config['ip']}:{config['port']} failed: {str(e)}\033[0m")
+
+            time.sleep(config["interval"] * 60)
+    except KeyboardInterrupt:
+        print("\033[96mExiting real-time operation view.\033[0m")
+
+
 def main():
     install_packages()
     stop_event = Event()
@@ -243,10 +268,10 @@ def main():
     while True:
         script_status = get_script_status(monitor_thread)
         print_menu(script_status)
-        choice = input("\033[94mEnter your choice (1-7): \033[0m")
+        choice = input("\033[94mEnter your choice (1-8): \033[0m")
 
         if choice == "1":
-            config_menu()
+            monitor_thread, stop_event = config_menu(monitor_thread, stop_event)
         elif choice == "2":
             config = read_config()
             if config:
@@ -271,8 +296,10 @@ def main():
         elif choice == "5":
             view_current_config()
         elif choice == "6":
-            uninstall()
+            view_realtime_operation(monitor_thread)
         elif choice == "7":
+            uninstall()
+        elif choice == "8":
             if monitor_thread is not None and monitor_thread.is_alive():
                 stop_event.set()
                 monitor_thread.join(timeout=5)
