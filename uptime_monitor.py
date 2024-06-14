@@ -27,6 +27,7 @@ def config_menu(update=False, change_value=None):
     try:
         if os.path.exists("config.txt"):
             config = read_config()
+            print(f"{GREEN}Configuration file found.{RESET}")
         else:
             config = {
                 "ip": "",
@@ -36,6 +37,7 @@ def config_menu(update=False, change_value=None):
                 "chat_id": "",
                 "success_interval": ""
             }
+            print(f"{RED}Configuration file not found. Creating a new one.{RESET}")
 
         if update or change_value:
             if change_value:
@@ -98,9 +100,11 @@ def config_menu(update=False, change_value=None):
 
         with open("config.txt", "w") as config_file:
             config_file.write(f"{config['ip']}\n{config['port']}\n{config['interval']}\n{config['bot_token']}\n{config['chat_id']}\n{config['success_interval']}")
+            print(f"{GREEN}Configuration saved to config.txt{RESET}")
         print(f"{GREEN}Configuration saved.{RESET}")
     except Exception as e:
         print(f"{RED}Error during configuration: {e}{RESET}")
+        
 def read_config():
     try:
         with open("config.txt", "r") as config_file:
