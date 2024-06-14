@@ -1,13 +1,12 @@
 import os
 import sys
-import time
 import subprocess
-import threading
-import schedule
 import json
+import schedule
+import time
 from datetime import datetime
-from telegram import Update, Bot
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram import Bot
+import npyscreen
 
 # Global variables
 CONFIG_FILE = "config.json"
@@ -35,7 +34,7 @@ def save_config(config):
 
 # Check if required packages are installed
 def check_packages():
-    required_packages = ["python-telegram-bot", "schedule"]
+    required_packages = ["python-telegram-bot", "schedule", "npyscreen"]
     installed_packages = subprocess.check_output(["pip", "freeze"]).decode().split("\n")
     missing_packages = [p for p in required_packages if p not in installed_packages]
     if missing_packages:
@@ -67,177 +66,87 @@ def ping_remote_server(config):
         log(f"Failed to ping {ip}:{port}")
         send_notification(bot, config["admin_id"], f"Failed to ping {ip}:{port}")
 
-# Main function
+# Main application class
+class GrimonitorApp(npyscreen.NPSAppManaged):
+    def onStart(self):
+        self.config = load_config()
+        check_packages()
+        self.bot = Bot(token=self.config["bot_token"])
+        self.addForm("MAIN", MainForm, name="Uptime Monitor")
+
+# Main menu form
+class MainForm(npyscreen.FormBaseNew):
+    def create(self):
+        self.add_handlers({
+            "^Q": self.exit_func,
+            "^S": self.save_config,
+            "^I": self.install_packages,
+            "^P": self.ping_server,
+            "^C": self.change_settings
+        })
+
+        self.config = load_config()
+
+        self.add(npyscreen.TitleText, name="Uptime Monitor", editable=False)
+        self.add(npyscreen.FixedText, value="Press 'c' to change settings", editable=False)
+        self.add(npyscreen.FixedText, value="Press 'p' to ping the server", editable=False)
+        self.add(npyscreen.FixedText, value="Press 'i' to install packages", editable=False)
+        self.add(npyscreen.FixedText, value="Press 's' to save configuration", editable=False)
+        self.add(npyscreen.FixedText, value="Press 'q' to quit", editable=False)
+
+    def exit_func(self, _):
+        self.parentApp.setNextForm(None)
+        self.editing = False
+
+    def save_config(self, _):
+        save_config(self.config)
+        npyscreen.notify_confirm("Configuration saved", title="Success")
+
+    def install_packages(self, _):
+        check_packages()
+        npyscreen.notify_confirm("Packages installed", title="Success")
+
+    def ping_server(self, _):
+        ping_remote_server(self.config)
+        npyscreen.notify_confirm("Pinged server", title="Success")
+
+    def change_settings(self, _):
+        self.parentApp.addForm("SETTINGS", SettingsForm, name="Settings")
+        self.parentApp.switchForm("SETTINGS")
+
+# Settings form
+class SettingsForm(npyscreen.ActionForm):
+    def create(self):
+        self.add_handlers({
+            "^Q": self.exit_func,
+            "^S": self.save_settings
+        })
+
+        self.config = load_config()
+
+        self.add(npyscreen.TitleText, name="Settings", editable=False)
+        self.ip_entry = self.add(npyscreen.TitleText, name="Remote IP:", value=self.config["remote_ip"], editable=True)
+        self.port_entry = self.add(npyscreen.TitleText, name="Remote Port:", value=str(self.config["remote_port"]), editable=True)
+        self.interval_entry = self.add(npyscreen.TitleText, name="Check Interval (minutes):", value=str(self.config["check_interval"]), editable=True)
+        self.success_interval_entry = self.add(npyscreen.TitleText, name="Success Notification Interval (minutes):", value=str(self.config["success_notification_interval"]), editable=True)
+        self.add(npyscreen.FixedText, value="Press 's' to save settings", editable=False)
+        self.add(npyscreen.FixedText, value="Press 'q' to go back", editable=False)
+
+    def exit_func(self, _):
+        self.parentApp.switchFormPrevious()
+
+    def save_settings(self, _):
+        self.config["remote_ip"] = self.ip_entry.value
+        self.config["remote_port"] = int(self.port_entry.value)
+        self.config["check_interval"] = int(self.interval_entry.value)
+        self.config["success_notification_interval"] = int(self.success_interval_entry.value)
+        save_config(self.config)
+        npyscreen.notify_confirm("Settings saved", title="Success")
+        self.parentApp.switchFormPrevious()
+
 def main():
-    global bot
-
-    # Load configuration
-    config = load_config()
-
-    # Check and install required packages
-    check_packages()
-
-    # Initialize Telegram bot
-    updater = Updater(config["bot_token"], use_context=True)
-    bot = updater.bot
-    dispatcher = updater.dispatcher
-
-    # Set up command handlers
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("stop", stop))
-    dispatcher.add_handler(CommandHandler("status", status))
-    dispatcher.add_handler(CommandHandler("ping", ping))
-    dispatcher.add_handler(CommandHandler("setip", set_ip))
-    dispatcher.add_handler(CommandHandler("setport", set_port))
-    dispatcher.add_handler(CommandHandler("setinterval", set_interval))
-    dispatcher.add_handler(CommandHandler("setsuccessinterval", set_success_interval))
-
-    # Start the bot
-    updater.start_polling()
-
-    # Schedule pinging remote server
-    schedule.every(config["check_interval"]).minutes.do(ping_remote_server, config=config)
-
-    # Run the scheduler
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
-
-# Command handlers
-def start(update: Update, context: CallbackContext):
-    pass
-
-def stop(update: Update, context: CallbackContext):
-    pass
-
-def status(update: Update, context: CallbackContext):
-    pass
-
-def ping(update: Update, context: CallbackContext):
-    pass
-
-def set_ip(update: Update, context: CallbackContext):
-    pass
-
-def set_port(update: Update, context: CallbackContext):
-    pass
-
-def set_interval(update: Update, context: CallbackContext):
-    pass
-
-def set_success_interval(update: Update, context: CallbackContext):
-    pass
+    app = GrimonitorApp()
+    app.run()
 
 if __name__ == "__main__":
     main()
-
-# Command handlers
-def start(update: Update, context: CallbackContext):
-    """Start the uptime monitor"""
-    config = load_config()
-    if not config["remote_ip"]:
-        update.message.reply_text("Please set the remote IP address first using /setip")
-        return
-
-    schedule.every(config["check_interval"]).minutes.do(ping_remote_server, config=config)
-    send_notification(bot, config["admin_id"], "Uptime monitor started")
-    log("Uptime monitor started")
-    update.message.reply_text("Uptime monitor started")
-
-def stop(update: Update, context: CallbackContext):
-    """Stop the uptime monitor"""
-    schedule.clear()
-    send_notification(bot, load_config()["admin_id"], "Uptime monitor stopped")
-    log("Uptime monitor stopped")
-    update.message.reply_text("Uptime monitor stopped")
-
-def status(update: Update, context: CallbackContext):
-    """Get the current status of the uptime monitor"""
-    config = load_config()
-    if schedule.get_jobs():
-        update.message.reply_text(f"Uptime monitor is running\n"
-                                  f"Remote IP: {config['remote_ip']}\n"
-                                  f"Remote Port: {config['remote_port']}\n"
-                                  f"Check Interval: {config['check_interval']} minutes\n"
-                                  f"Success Notification Interval: {config['success_notification_interval']} minutes")
-    else:
-        update.message.reply_text("Uptime monitor is not running")
-
-def ping(update: Update, context: CallbackContext):
-    """Manually ping the remote server"""
-    config = load_config()
-    ping_remote_server(config)
-    update.message.reply_text(f"Manually pinged {config['remote_ip']}:{config['remote_port']}")
-
-def set_ip(update: Update, context: CallbackContext):
-    """Set the remote IP address"""
-    if len(context.args) != 1:
-        update.message.reply_text("Usage: /setip <ip_address>")
-        return
-
-    ip = context.args[0]
-    config = load_config()
-    config["remote_ip"] = ip
-    save_config(config)
-    send_notification(bot, config["admin_id"], f"Remote IP address set to {ip}")
-    log(f"Remote IP address set to {ip}")
-    update.message.reply_text(f"Remote IP address set to {ip}")
-
-def set_port(update: Update, context: CallbackContext):
-    """Set the remote port"""
-    if len(context.args) != 1:
-        update.message.reply_text("Usage: /setport <port_number>")
-        return
-
-    try:
-        port = int(context.args[0])
-    except ValueError:
-        update.message.reply_text("Invalid port number")
-        return
-
-    config = load_config()
-    config["remote_port"] = port
-    save_config(config)
-    send_notification(bot, config["admin_id"], f"Remote port set to {port}")
-    log(f"Remote port set to {port}")
-    update.message.reply_text(f"Remote port set to {port}")
-
-def set_interval(update: Update, context: CallbackContext):
-    """Set the check interval"""
-    if len(context.args) != 1:
-        update.message.reply_text("Usage: /setinterval <minutes>")
-        return
-
-    try:
-        interval = int(context.args[0])
-    except ValueError:
-        update.message.reply_text("Invalid interval")
-        return
-
-    config = load_config()
-    config["check_interval"] = interval
-    save_config(config)
-    schedule.clear()
-    schedule.every(interval).minutes.do(ping_remote_server, config=config)
-    send_notification(bot, config["admin_id"], f"Check interval set to {interval} minutes")
-    log(f"Check interval set to {interval} minutes")
-    update.message.reply_text(f"Check interval set to {interval} minutes")
-
-def set_success_interval(update: Update, context: CallbackContext):
-    """Set the success notification interval"""
-    if len(context.args) != 1:
-        update.message.reply_text("Usage: /setsuccessinterval <minutes>")
-        return
-
-    try:
-        interval = int(context.args[0])
-    except ValueError:
-        update.message.reply_text("Invalid interval")
-        return
-
-    config = load_config()
-    config["success_notification_interval"] = interval
-    save_config(config)
-    send_notification(bot, config["admin_id"], f"Success notification interval set to {interval} minutes")
-    log(f"Success notification interval set to {interval} minutes")
-    update.message.reply_text(f"Success notification interval set to {interval} minutes")
