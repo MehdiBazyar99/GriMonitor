@@ -82,11 +82,6 @@ def config_menu(monitor_thread, stop_event):
 
     return monitor_thread, stop_event
 
-    except Exception as e:
-        print(f"\033[91mError during configuration: {e}\033[0m")
-
-    return monitor_thread, stop_event
-
 def success_notification_menu():
     while True:
         try:
