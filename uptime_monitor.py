@@ -22,8 +22,6 @@ MENU_OPTIONS = [
     "\033[96m│ \033[92m7. Exit                                                                    \033[96m│\033[0m"
 ]
 
-monitor_thread = None
-stop_event = Event()
 
 def install_packages():
     try:
@@ -32,19 +30,18 @@ def install_packages():
         print(f"\033[91mError installing packages: {e}\033[0m")
         sys.exit(1)
 
-def config_menu():
-    global monitor_thread, stop_event
 
+def config_menu():
     try:
-        config = read_config()
-        if config:
+        if os.path.exists("config.txt"):
+            config = read_config()
             print(MENU_HEADER)
             print("\033[96m│                              \033[93mCurrent Configuration\033[96m                          │\033[0m")
             print(MENU_SEPARATOR)
             print(f"\033[96m│ \033[92mIP Address: {config['ip']:<53}\033[96m│\033[0m")
             print(f"\033[96m│ \033[92mPort: {config['port']:<57}\033[96m│\033[0m")
             print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<40}\033[96m│\033[0m")
-            print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[96m│\033{0m")
+            print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[96m│\033[0m")
             print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']:<48}\033[96m│\033[0m")
             print(MENU_FOOTER)
             update = input("\033[94mDo you want to update the configuration? (y/n): \033[0m").lower() == 'y'
@@ -69,6 +66,7 @@ def config_menu():
                 config_file.write(f"{ip}\n{port}\n{interval}\n{bot_token}\n{chat_id}")
             print("\033[92mConfiguration saved.\033[0m")
 
+            global monitor_thread, stop_event
             if monitor_thread is not None and monitor_thread.is_alive():
                 stop_event.set()
                 monitor_thread.join()
@@ -80,18 +78,24 @@ def config_menu():
     except Exception as e:
         print(f"\033[91mError during configuration: {e}\033[0m")
 
-def success_notification_menu():
-    global monitor_thread, stop_event
 
+def success_notification_menu():
     while True:
         try:
-            success_config = read_success_config()
+            if os.path.exists("success_config.txt"):
+                with open("success_config.txt", "r") as config_file:
+                    enabled, interval = config_file.read().split("\n")
+                    enabled = enabled.lower() == "true"
+                    interval = int(interval)
+            else:
+                enabled = False
+                interval = 60
 
             print(MENU_HEADER)
             print("\033[96m│                     \033[93mSuccess Notification Configuration\033[96m                    │\033[0m")
             print(MENU_SEPARATOR)
-            print(f"\033[96m│ \033[92mEnabled: {str(success_config['enabled']):<57}\033[96m│\033[0m")
-            print(f"\033[96m│ \033[92mInterval: {success_config['interval']} minutes{' ':<43}\033[0m│\033[0m")
+            print(f"\033[96m│ \033[92mEnabled: {str(enabled):<57}\033[96m│\033[0m")
+            print(f"\033[96m│ \033[92mInterval: {interval} minutes{' ':<43}\033[96m│\033[0m")
             print(MENU_SEPARATOR)
             print("\033[96m│ \033[92m1. Enable/Disable                                                          \033[96m│\033[0m")
             print("\033[96m│ \033[92m2. Set Interval                                                            \033[96m│\033[0m")
@@ -101,20 +105,21 @@ def success_notification_menu():
             choice = input("\033[94mEnter your choice (1-3): \033[0m")
 
             if choice == "1":
-                success_config['enabled'] = not success_config['enabled']
-                print(f"\033[92mSuccess notifications {'enabled' if success_config['enabled'] else 'disabled'}.\033[0m")
+                enabled = not enabled
+                print(f"\033[92mSuccess notifications {'enabled' if enabled else 'disabled'}.\033[0m")
             elif choice == "2":
-                success_config['interval'] = int(input("\033[94mEnter the success notification interval in minutes: \033[0m"))
-                print(f"\033[92mSuccess notification interval set to {success_config['interval']} minutes.\033[0m")
+                interval = int(input("\033[94mEnter the success notification interval in minutes: \033[0m"))
+                print(f"\033[92mSuccess notification interval set to {interval} minutes.\033[0m")
             elif choice == "3":
                 with open("success_config.txt", "w") as config_file:
-                    config_file.write(f"{success_config['enabled']}\n{success_config['interval']}")
+                    config_file.write(f"{enabled}\n{interval}")
                 return
             else:
                 print("\033[91mInvalid choice. Please try again.\033[0m")
 
         except Exception as e:
             print(f"\033[91mError during success notification configuration: {e}\033[0m")
+
 
 def read_config():
     try:
@@ -130,6 +135,7 @@ def read_config():
     except (FileNotFoundError, IndexError, ValueError):
         return {}
 
+
 def send_telegram_message(bot_token, chat_id, message):
     try:
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -137,6 +143,7 @@ def send_telegram_message(bot_token, chat_id, message):
         requests.post(url, data=data)
     except requests.exceptions.RequestException as e:
         print(f"\033[91mError sending Telegram message: {e}\033[0m")
+
 
 def check_connection(stop_event):
     config = read_config()
@@ -152,6 +159,7 @@ def check_connection(stop_event):
         
         time.sleep(config["interval"] * 60)
 
+
 def read_success_config():
     try:
         with open("success_config.txt", "r") as config_file:
@@ -166,6 +174,7 @@ def read_success_config():
             "interval": 60
         }
 
+
 def get_script_status(monitor_thread):
     if not os.path.exists("config.txt"):
         return "Not Configured"
@@ -173,6 +182,7 @@ def get_script_status(monitor_thread):
         return "Stopped"
     else:
         return "Running"
+
 
 def print_menu(script_status):
     print(MENU_HEADER)
@@ -182,6 +192,7 @@ def print_menu(script_status):
     for option in MENU_OPTIONS:
         print(option)
     print(MENU_FOOTER)
+
 
 def uninstall():
     try:
@@ -205,6 +216,7 @@ def uninstall():
     except Exception as e:
         print(f"\033[91mError during uninstallation: {e}\033[0m")
 
+
 def view_current_config():
     config = read_config()
     if config:
@@ -212,18 +224,19 @@ def view_current_config():
         print("\033[96m│                              \033[93mCurrent Configuration\033[96m                          │\033[0m")
         print(MENU_SEPARATOR)
         print(f"\033[96m│ \033[92mIP Address: {config['ip']:<53}\033[96m│\033[0m")
-        print(f"\033[96m│ \033[92mPort: {config['port']:<57}\033[0m│\033[0m")
-        print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<40}\033[0m│\033[0m")
-        print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[0m│\033[0m")
-        print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']:<48}\033[0m│\033[0m")
+        print(f"\033[96m│ \033[92mPort: {config['port']:<57}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<40}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']:<48}\033[96m│\033[0m")
         print(MENU_FOOTER)
     else:
         print("\033[91mNo configuration found. Please configure GriMonitor first.\033[0m")
 
-def main():
-    global monitor_thread, stop_event
 
+def main():
     install_packages()
+    stop_event = Event()
+    monitor_thread = None
 
     while True:
         script_status = get_script_status(monitor_thread)
@@ -265,6 +278,7 @@ def main():
             break
         else:
             print("\033[91mInvalid choice. Please try again.\033[0m")
+
 
 if __name__ == "__main__":
     main()
