@@ -7,7 +7,7 @@ import time
 import subprocess
 from getpass import getpass
 from threading import Thread, Event
-import daemon
+from daemon import DaemonContext
 
 MENU_HEADER = "\033[96m┌────────────────────────────────────────────────────────────────────────────┐\033[0m"
 MENU_FOOTER = "\033[96m└────────────────────────────────────────────────────────────────────────────┘\033[0m"
