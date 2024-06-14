@@ -266,7 +266,7 @@ def view_realtime_operation(monitor_thread):
 
 
 def start_monitoring_daemon(stop_event):
-    with daemon.DaemonContext():
+    with DaemonContext():
         check_connection(stop_event)
 
 
