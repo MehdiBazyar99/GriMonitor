@@ -8,6 +8,20 @@ import subprocess
 from getpass import getpass
 from threading import Thread, Event
 
+MENU_HEADER = "\033[96m┌─────────────────────────────────────────────────┐\033[0m"
+MENU_FOOTER = "\033[96m└─────────────────────────────────────────────────┘\033[0m"
+MENU_TITLE = "\033[96m│           \033[93mGriMonitor Uptime Monitor\033[96m            │\033[0m"
+MENU_SEPARATOR = "\033[96m├─────────────────────────────────────────────────┤\033[0m"
+MENU_OPTIONS = [
+    "\033[96m│ \033[92m1. Configure                                    \033[96m│\033[0m",
+    "\033[96m│ \033[92m2. Start                                        \033[96m│\033[0m",
+    "\033[96m│ \033[92m3. Stop                                         \033[96m│\033[0m",
+    "\033[96m│ \033[92m4. Success Notification Configuration           \033[96m│\033[0m",
+    "\033[96m│ \033[92m5. View Current Configuration                   \033[96m│\033[0m",
+    "\033[96m│ \033[92m6. Uninstall                                    \033[96m│\033[0m",
+    "\033[96m│ \033[92m7. Exit                                         \033[96m│\033[0m"
+]
+
 
 def install_packages():
     try:
@@ -21,25 +35,25 @@ def config_menu():
     try:
         if os.path.exists("config.txt"):
             config = read_config()
-            print("\033[96m┌─────────────────────────────────────────────────┐\033[0m")
+            print(MENU_HEADER)
             print("\033[96m│               \033[93mCurrent Configuration\033[96m             │\033[0m")
-            print("\033[96m├─────────────────────────────────────────────────┤\033[0m")
+            print(MENU_SEPARATOR)
             print(f"\033[96m│ \033[92mIP Address: {config['ip']}\033[96m                           │\033[0m")
             print(f"\033[96m│ \033[92mPort: {config['port']}\033[96m                                  │\033[0m")
             print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes\033[96m           │\033[0m")
             print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']}\033[96m            │\033[0m")
             print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']}\033[96m               │\033[0m")
-            print("\033[96m└─────────────────────────────────────────────────┘\033[0m")
+            print(MENU_FOOTER)
             update = input("\033[94mDo you want to update the configuration? (y/n): \033[0m").lower() == 'y'
         else:
             update = True
 
         if update:
-            ip = input("\033[94mEnter the IP address to monitor: \033[0m")
-            port = input("\033[94mEnter the port to monitor: \033[0m")
-            interval = input("\033[94mEnter the monitoring interval in minutes: \033[0m")
-            bot_token = getpass("\033[94mEnter the Telegram bot token: \033[0m")
-            chat_id = input("\033[94mEnter the Telegram chat ID: \033[0m")
+            ip = input("\033[94mEnter the IP address to monitor (leave blank to keep current value): \033[0m") or (config['ip'] if 'ip' in config else '')
+            port = input("\033[94mEnter the port to monitor (leave blank to keep current value): \033[0m") or (str(config['port']) if 'port' in config else '')
+            interval = input("\033[94mEnter the monitoring interval in minutes (leave blank to keep current value): \033[0m") or (str(config['interval']) if 'interval' in config else '')
+            bot_token = getpass("\033[94mEnter the Telegram bot token (leave blank to keep current value): \033[0m") or (config['bot_token'] if 'bot_token' in config else '')
+            chat_id = input("\033[94mEnter the Telegram chat ID (leave blank to keep current value): \033[0m") or (config['chat_id'] if 'chat_id' in config else '')
 
             try:
                 port = int(port)
@@ -66,16 +80,16 @@ def success_notification_menu():
             enabled = False
             interval = 60
 
-        print("\033[96m┌─────────────────────────────────────────────────┐\033[0m")
+        print(MENU_HEADER)
         print("\033[96m│        \033[93mSuccess Notification Configuration\033[96m       │\033[0m")
-        print("\033[96m├─────────────────────────────────────────────────┤\033[0m")
+        print(MENU_SEPARATOR)
         print(f"\033[96m│ \033[92mEnabled: {enabled}\033[96m                                    │\033[0m")
         print(f"\033[96m│ \033[92mInterval: {interval} minutes\033[96m                           │\033[0m")
-        print("\033[96m├─────────────────────────────────────────────────┤\033[0m")
+        print(MENU_SEPARATOR)
         print("\033[96m│ \033[92m1. Enable/Disable                               \033[96m│\033[0m")
         print("\033[96m│ \033[92m2. Set Interval                                 \033[96m│\033[0m")
         print("\033[96m│ \033[92m3. Back                                         \033[96m│\033[0m")
-        print("\033[96m└─────────────────────────────────────────────────┘\033[0m")
+        print(MENU_FOOTER)
 
         choice = input("\033[94mEnter your choice (1-3): \033[0m")
 
@@ -109,7 +123,7 @@ def read_config():
                 "chat_id": lines[4].strip()
             }
     except (FileNotFoundError, IndexError, ValueError):
-        return None
+        return {}
 
 
 def send_telegram_message(bot_token, chat_id, message):
@@ -167,18 +181,13 @@ def get_script_status(monitor_thread):
 
 
 def print_menu(script_status):
-    print("\033[96m┌─────────────────────────────────────────────────┐\033[0m")
-    print("\033[96m│           \033[93mGriMonitor Uptime Monitor\033[96m            │\033[0m")
+    print(MENU_HEADER)
+    print(MENU_TITLE)
     print(f"\033[96m│               \033[93mStatus: {script_status}\033[96m               │\033[0m")
-    print("\033[96m├─────────────────────────────────────────────────┤\033[0m")
-    print("\033[96m│ \033[92m1. Configure                                    \033[96m│\033[0m")
-    print("\033[96m│ \033[92m2. Start                                        \033[96m│\033[0m")
-    print("\033[96m│ \033[92m3. Stop                                         \033[96m│\033[0m")
-    print("\033[96m│ \033[92m4. Success Notification Configuration           \033[96m│\033[0m")
-    print("\033[96m│ \033[92m5. View Current Configuration                   \033[96m│\033[0m")
-    print("\033[96m│ \033[92m6. Uninstall                                    \033[96m│\033[0m")
-    print("\033[96m│ \033[92m7. Exit                                         \033[96m│\033[0m")
-    print("\033[96m└─────────────────────────────────────────────────┘\033[0m")
+    print(MENU_SEPARATOR)
+    for option in MENU_OPTIONS:
+        print(option)
+    print(MENU_FOOTER)
 
 
 def uninstall():
@@ -207,15 +216,15 @@ def uninstall():
 def view_current_config():
     config = read_config()
     if config:
-        print("\033[96m┌─────────────────────────────────────────────────┐\033[0m")
+        print(MENU_HEADER)
         print("\033[96m│               \033[93mCurrent Configuration\033[96m             │\033[0m")
-        print("\033[96m├─────────────────────────────────────────────────┤\033[0m")
+        print(MENU_SEPARATOR)
         print(f"\033[96m│ \033[92mIP Address: {config['ip']}\033[96m                           │\033[0m")
         print(f"\033[96m│ \033[92mPort: {config['port']}\033[96m                                  │\033[0m")
         print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes\033[96m           │\033[0m")
         print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']}\033[96m            │\033[0m")
         print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']}\033[96m               │\033[0m")
-        print("\033[96m└─────────────────────────────────────────────────┘\033[0m")
+        print(MENU_FOOTER)
     else:
         print("\033[91mNo configuration found. Please configure GriMonitor first.\033[0m")
 
