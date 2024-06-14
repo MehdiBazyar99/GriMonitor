@@ -71,9 +71,16 @@ def config_menu(monitor_thread, stop_event):
                 stop_event.set()
                 monitor_thread.join(timeout=5)
                 stop_event.clear()
-                monitor_thread = Thread(target=check_connection, args=(stop_event,), daemon=True)
-                monitor_thread.start()
-                print("\033[92mMonitoring restarted with the new configuration.\033[0m")
+                monitor_thread = None  # Set monitor_thread to None after stopping it
+
+            monitor_thread = Thread(target=check_connection, args=(stop_event,), daemon=True)
+            monitor_thread.start()
+            print("\033[92mMonitoring started with the new configuration.\033[0m")
+
+    except Exception as e:
+        print(f"\033[91mError during configuration: {e}\033[0m")
+
+    return monitor_thread, stop_event
 
     except Exception as e:
         print(f"\033[91mError during configuration: {e}\033[0m")
@@ -149,10 +156,10 @@ def send_telegram_message(bot_token, chat_id, message):
 
 
 def check_connection(stop_event):
-    config = read_config()
-    success_config = read_success_config()
-
     while not stop_event.is_set():
+        config = read_config()
+        success_config = read_success_config()
+
         try:
             telnetlib.Telnet(config["ip"], config["port"], timeout=10)
             if success_config["enabled"]:
