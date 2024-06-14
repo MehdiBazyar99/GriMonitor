@@ -1,152 +1,84 @@
 import os
-import sys
-import subprocess
-import json
-import schedule
 import time
-from datetime import datetime
+import schedule
+import requests
+import telnetlib
+import logging
 from telegram import Bot
-import npyscreen
+from telegram.ext import CommandHandler, Updater
 
-# Global variables
-CONFIG_FILE = "config.json"
-LOG_FILE = "uptime_monitor.log"
+# Configuration
+CONFIG_FILE = 'config.txt'
 
-# Load configuration from file
-def load_config():
+# Logging setup
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Read configuration from file
+def read_config():
+    config = {}
     if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "r") as f:
-            return json.load(f)
-    else:
-        return {
-            "remote_ip": "",
-            "remote_port": 80,
-            "check_interval": 5,
-            "bot_token": "",
-            "admin_id": "",
-            "success_notification_interval": 60
-        }
+        with open(CONFIG_FILE, 'r') as f:
+            for line in f:
+                name, value = line.strip().split('=')
+                config[name] = value
+    return config
 
-# Save configuration to file
-def save_config(config):
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f, indent=4)
+config = read_config()
 
-# Check if required packages are installed
-def check_packages():
-    required_packages = ["python-telegram-bot", "schedule", "npyscreen"]
-    installed_packages = subprocess.check_output(["pip", "freeze"]).decode().split("\n")
-    missing_packages = [p for p in required_packages if p not in installed_packages]
-    if missing_packages:
-        print(f"Installing missing packages: {', '.join(missing_packages)}")
-        subprocess.check_call([sys.executable, "-m", "pip", "install", *missing_packages])
+# Telegram Bot setup
+bot_token = config.get('BOT_TOKEN')
+chat_id = config.get('CHAT_ID')
+bot = Bot(token=bot_token)
+updater = Updater(token=bot_token, use_context=True)
 
-# Send notification to Telegram bot
-def send_notification(bot, chat_id, message):
+# Ping function
+def ping():
     try:
-        bot.send_message(chat_id=chat_id, text=message)
-    except Exception as e:
-        log(f"Error sending Telegram notification: {e}")
+        with telnetlib.Telnet(config['IP'], config['PORT']) as tn:
+            logger.info(f"Successfully connected to {config['IP']} on port {config['PORT']}")
+            return True
+    except:
+        logger.error(f"Failed to connect to {config['IP']} on port {config['PORT']}")
+        bot.send_message(chat_id=chat_id, text=f"Failed to connect to {config['IP']} on port {config['PORT']}")
+        return False
 
-# Log messages to file
-def log(message):
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(LOG_FILE, "a") as f:
-        f.write(f"[{timestamp}] {message}\n")
+# Command handlers for Telegram bot
+def start(update, context):
+    schedule.every(int(config['INTERVAL'])).minutes.do(ping)
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Uptime monitor started.")
 
-# Ping remote server
-def ping_remote_server(config):
-    ip, port = config["remote_ip"], config["remote_port"]
-    try:
-        subprocess.check_call(["telnet", ip, str(port)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
-        log(f"Successfully pinged {ip}:{port}")
-        if config["success_notification_interval"] > 0:
-            send_notification(bot, config["admin_id"], f"Successfully pinged {ip}:{port}")
-    except subprocess.CalledProcessError:
-        log(f"Failed to ping {ip}:{port}")
-        send_notification(bot, config["admin_id"], f"Failed to ping {ip}:{port}")
+def stop(update, context):
+    schedule.clear()
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Uptime monitor stopped.")
 
-# Main application class
-class GrimonitorApp(npyscreen.NPSAppManaged):
-    def onStart(self):
-        self.config = load_config()
-        check_packages()
-        self.bot = Bot(token=self.config["bot_token"])
-        self.addForm("MAIN", MainForm, name="Uptime Monitor")
+def configure(update, context):
+    args = context.args
+    if len(args) != 2:
+        context.bot.send_message(chat_id=update.effective_chat.id, text="Usage: /configure <key> <value>")
+        return
+    key, value = args
+    config[key.upper()] = value
+    with open(CONFIG_FILE, 'w') as f:
+        for k, v in config.items():
+            f.write(f"{k}={v}\n")
+    context.bot.send_message(chat_id=update.effective_chat.id, text=f"Configuration updated: {key}={value}")
 
-# Main menu form
-class MainForm(npyscreen.FormBaseNew):
-    def create(self):
-        self.add_handlers({
-            "^Q": self.exit_func,
-            "^S": self.save_config,
-            "^I": self.install_packages,
-            "^P": self.ping_server,
-            "^C": self.change_settings
-        })
+def status(update, context):
+    status_message = "\n".join([f"{k}={v}" for k, v in config.items()])
+    context.bot.send_message(chat_id=update.effective_chat.id, text=f"Current configuration:\n{status_message}")
 
-        self.config = load_config()
+# Adding handlers to dispatcher
+dispatcher = updater.dispatcher
+dispatcher.add_handler(CommandHandler('start', start))
+dispatcher.add_handler(CommandHandler('stop', stop))
+dispatcher.add_handler(CommandHandler('configure', configure))
+dispatcher.add_handler(CommandHandler('status', status))
 
-        self.add(npyscreen.TitleText, name="Uptime Monitor", editable=False)
-        self.add(npyscreen.FixedText, value="Press 'c' to change settings", editable=False)
-        self.add(npyscreen.FixedText, value="Press 'p' to ping the server", editable=False)
-        self.add(npyscreen.FixedText, value="Press 'i' to install packages", editable=False)
-        self.add(npyscreen.FixedText, value="Press 's' to save configuration", editable=False)
-        self.add(npyscreen.FixedText, value="Press 'q' to quit", editable=False)
+# Starting the bot
+updater.start_polling()
 
-    def exit_func(self, _):
-        self.parentApp.setNextForm(None)
-        self.editing = False
-
-    def save_config(self, _):
-        save_config(self.config)
-        npyscreen.notify_confirm("Configuration saved", title="Success")
-
-    def install_packages(self, _):
-        check_packages()
-        npyscreen.notify_confirm("Packages installed", title="Success")
-
-    def ping_server(self, _):
-        ping_remote_server(self.config)
-        npyscreen.notify_confirm("Pinged server", title="Success")
-
-    def change_settings(self, _):
-        self.parentApp.addForm("SETTINGS", SettingsForm, name="Settings")
-        self.parentApp.switchForm("SETTINGS")
-
-# Settings form
-class SettingsForm(npyscreen.ActionForm):
-    def create(self):
-        self.add_handlers({
-            "^Q": self.exit_func,
-            "^S": self.save_settings
-        })
-
-        self.config = load_config()
-
-        self.add(npyscreen.TitleText, name="Settings", editable=False)
-        self.ip_entry = self.add(npyscreen.TitleText, name="Remote IP:", value=self.config["remote_ip"], editable=True)
-        self.port_entry = self.add(npyscreen.TitleText, name="Remote Port:", value=str(self.config["remote_port"]), editable=True)
-        self.interval_entry = self.add(npyscreen.TitleText, name="Check Interval (minutes):", value=str(self.config["check_interval"]), editable=True)
-        self.success_interval_entry = self.add(npyscreen.TitleText, name="Success Notification Interval (minutes):", value=str(self.config["success_notification_interval"]), editable=True)
-        self.add(npyscreen.FixedText, value="Press 's' to save settings", editable=False)
-        self.add(npyscreen.FixedText, value="Press 'q' to go back", editable=False)
-
-    def exit_func(self, _):
-        self.parentApp.switchFormPrevious()
-
-    def save_settings(self, _):
-        self.config["remote_ip"] = self.ip_entry.value
-        self.config["remote_port"] = int(self.port_entry.value)
-        self.config["check_interval"] = int(self.interval_entry.value)
-        self.config["success_notification_interval"] = int(self.success_interval_entry.value)
-        save_config(self.config)
-        npyscreen.notify_confirm("Settings saved", title="Success")
-        self.parentApp.switchFormPrevious()
-
-def main():
-    app = GrimonitorApp()
-    app.run()
-
-if __name__ == "__main__":
-    main()
+# Main loop to keep the script running and check schedule
+while True:
+    schedule.run_pending()
+    time.sleep(1)
