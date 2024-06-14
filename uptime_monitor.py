@@ -34,35 +34,34 @@ def install_packages():
 
 def config_menu(monitor_thread, stop_event):
     try:
-        if os.path.exists("config.txt"):
-            config = read_config()
-            print(MENU_HEADER)
-            print("\033[96m│                              \033[93mCurrent Configuration\033[96m                          │\033[0m")
-            print(MENU_SEPARATOR)
-            print(f"\033[96m│ \033[92mIP Address: {config['ip']:<53}\033[96m│\033[0m")
-            print(f"\033[96m│ \033[92mPort: {config['port']:<57}\033[96m│\033[0m")
-            print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<40}\033[96m│\033[0m")
-            print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[96m│\033[0m")
-            print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']:<48}\033[96m│\033[0m")
-            print(MENU_FOOTER)
-            update = input("\033[94mDo you want to update the configuration? (y/n): \033[0m").lower() == 'y'
-        else:
-            update = True
+        config = read_config()
 
-        if update:
-            ip = input("\033[94mEnter the IP address to monitor (leave blank to keep current value): \033[0m") or (config['ip'] if 'ip' in config else '')
-            port = input("\033[94mEnter the port to monitor (leave blank to keep current value): \033[0m") or (str(config['port']) if 'port' in config else '')
-            interval = input("\033[94mEnter the monitoring interval in minutes (leave blank to keep current value): \033[0m") or (str(config['interval']) if 'interval' in config else '')
-            bot_token = getpass("\033[94mEnter the Telegram bot token (leave blank to keep current value): \033[0m") or (config['bot_token'] if 'bot_token' in config else '')
-            chat_id = input("\033[94mEnter the Telegram chat ID (leave blank to keep current value): \033[0m") or (config['chat_id'] if 'chat_id' in config else '')
+        print(MENU_HEADER)
+        print("\033[96m│                              \033[93mConfiguration Menu\033[96m                            │\033[0m")
+        print(MENU_SEPARATOR)
 
-            try:
-                port = int(port)
-                interval = int(interval)
-            except ValueError:
-                print("\033[91mInvalid input for port or interval. Please enter valid numbers.\033[0m")
-                return
+        ip = input("\033[94mEnter the IP address to monitor (leave blank to keep current value): \033[0m") or config.get('ip', '')
+        port = input("\033[94mEnter the port to monitor (leave blank to keep current value): \033[0m") or str(config.get('port', ''))
+        interval = input("\033[94mEnter the monitoring interval in minutes (leave blank to keep current value): \033[0m") or str(config.get('interval', ''))
+        bot_token = getpass("\033[94mEnter the Telegram bot token (leave blank to keep current value): \033[0m") or config.get('bot_token', '')
+        chat_id = input("\033[94mEnter the Telegram chat ID (leave blank to keep current value): \033[0m") or config.get('chat_id', '')
 
+        try:
+            port = int(port)
+            interval = int(interval)
+        except ValueError:
+            print("\033[91mInvalid input for port or interval. Please enter valid numbers.\033[0m")
+            return monitor_thread, stop_event
+
+        new_config = {
+            'ip': ip,
+            'port': port,
+            'interval': interval,
+            'bot_token': bot_token,
+            'chat_id': chat_id
+        }
+
+        if new_config != config:
             with open("config.txt", "w") as config_file:
                 config_file.write(f"{ip}\n{port}\n{interval}\n{bot_token}\n{chat_id}")
             print("\033[92mConfiguration saved.\033[0m")
@@ -71,15 +70,18 @@ def config_menu(monitor_thread, stop_event):
                 stop_event.set()
                 monitor_thread.join(timeout=5)
                 stop_event.clear()
-                monitor_thread = None  # Set monitor_thread to None after stopping it
+                monitor_thread = None
 
             monitor_thread = Thread(target=check_connection, args=(stop_event,), daemon=True)
             monitor_thread.start()
             print("\033[92mMonitoring started with the new configuration.\033[0m")
+        else:
+            print("\033[93mNo changes made to the configuration.\033[0m")
 
     except Exception as e:
         print(f"\033[91mError during configuration: {e}\033[0m")
 
+    print(MENU_FOOTER)
     return monitor_thread, stop_event
     
 
