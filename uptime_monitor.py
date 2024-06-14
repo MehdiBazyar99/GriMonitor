@@ -7,6 +7,7 @@ import time
 import subprocess
 from getpass import getpass
 from threading import Thread, Event
+import daemon
 
 MENU_HEADER = "\033[96m┌────────────────────────────────────────────────────────────────────────────┐\033[0m"
 MENU_FOOTER = "\033[96m└────────────────────────────────────────────────────────────────────────────┘\033[0m"
@@ -26,7 +27,7 @@ MENU_OPTIONS = [
 
 def install_packages():
     try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "schedule"])
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "schedule", "python-daemon"])
     except subprocess.CalledProcessError as e:
         print(f"\033[91mError installing packages: {e}\033[0m")
         sys.exit(1)
@@ -83,7 +84,7 @@ def config_menu(monitor_thread, stop_event):
 
     print(MENU_FOOTER)
     return monitor_thread, stop_event
-    
+
 
 def success_notification_menu():
     while True:
@@ -164,7 +165,7 @@ def check_connection(stop_event):
                 send_telegram_message(config["bot_token"], config["chat_id"], f"Connection to {config['ip']}:{config['port']} is successful.")
         except Exception as e:
             send_telegram_message(config["bot_token"], config["chat_id"], f"Connection to {config['ip']}:{config['port']} failed: {str(e)}")
-        
+
         time.sleep(config["interval"] * 60)
 
 
@@ -259,9 +260,14 @@ def view_realtime_operation(monitor_thread):
             except Exception as e:
                 print(f"\033[91mConnection to {config['ip']}:{config['port']} failed: {str(e)}\033[0m")
 
-            time.sleep(5)  # Adjust the sleep time as needed for better responsiveness
+            time.sleep(1)  # Adjust the sleep time as needed for better responsiveness
     except KeyboardInterrupt:
         print("\033[96mExiting real-time operation view.\033[0m")
+
+
+def start_monitoring_daemon(stop_event):
+    with daemon.DaemonContext():
+        check_connection(stop_event)
 
 
 def main():
@@ -269,49 +275,55 @@ def main():
     stop_event = Event()
     monitor_thread = None
 
-    while True:
-        script_status = get_script_status(monitor_thread)
-        print_menu(script_status)
-        choice = input("\033[94mEnter your choice (1-8): \033[0m")
+    try:
+        while True:
+            script_status = get_script_status(monitor_thread)
+            print_menu(script_status)
+            choice = input("\033[94mEnter your choice (1-8): \033[0m")
 
-        if choice == "1":
-            monitor_thread, stop_event = config_menu(monitor_thread, stop_event)
-        elif choice == "2":
-            config = read_config()
-            if config:
-                if monitor_thread is None or not monitor_thread.is_alive():
-                    stop_event.clear()
-                    monitor_thread = Thread(target=check_connection, args=(stop_event,), daemon=True)
-                    monitor_thread.start()
-                    print("\033[92mMonitoring started.\033[0m")
+            if choice == "1":
+                monitor_thread, stop_event = config_menu(monitor_thread, stop_event)
+            elif choice == "2":
+                config = read_config()
+                if config:
+                    if monitor_thread is None or not monitor_thread.is_alive():
+                        stop_event.clear()
+                        monitor_thread = Thread(target=start_monitoring_daemon, args=(stop_event,), daemon=True)
+                        monitor_thread.start()
+                        print("\033[92mMonitoring started.\033[0m")
+                    else:
+                        print("\033[93mMonitoring is already running.\033[0m")
                 else:
-                    print("\033[93mMonitoring is already running.\033[0m")
+                    print("\033[91mPlease configure GriMonitor first.\033[0m")
+            elif choice == "3":
+                if monitor_thread is not None:
+                    stop_event.set()
+                    monitor_thread.join(timeout=5)
+                    monitor_thread = None
+                    print("\033[92mMonitoring stopped.\033[0m")
+                else:
+                    print("\033[93mMonitoring is not currently running.\033[0m")
+            elif choice == "4":
+                success_notification_menu()
+            elif choice == "5":
+                view_current_config()
+            elif choice == "6":
+                view_realtime_operation(monitor_thread)
+            elif choice == "7":
+                uninstall()
+            elif choice == "8":
+                if monitor_thread is not None and monitor_thread.is_alive():
+                    stop_event.set()
+                    monitor_thread.join(timeout=5)
+                print("\033[92mExiting...\033[0m")
+                break
             else:
-                print("\033[91mPlease configure GriMonitor first.\033[0m")
-        elif choice == "3":
-            if monitor_thread is not None:
-                stop_event.set()
-                monitor_thread.join(timeout=5)
-                monitor_thread = None
-                print("\033[92mMonitoring stopped.\033[0m")
-            else:
-                print("\033[93mMonitoring is not currently running.\033[0m")
-        elif choice == "4":
-            success_notification_menu()
-        elif choice == "5":
-            view_current_config()
-        elif choice == "6":
-            view_realtime_operation(monitor_thread)
-        elif choice == "7":
-            uninstall()
-        elif choice == "8":
-            if monitor_thread is not None and monitor_thread.is_alive():
-                stop_event.set()
-                monitor_thread.join(timeout=5)
-            print("\033[92mExiting...\033[0m")
-            break
-        else:
-            print("\033[91mInvalid choice. Please try again.\033[0m")
+                print("\033[91mInvalid choice. Please try again.\033[0m")
+    except KeyboardInterrupt:
+        if monitor_thread is not None and monitor_thread.is_alive():
+            stop_event.set()
+            monitor_thread.join(timeout=5)
+        print("\033[92mExiting...\033[0m")
 
 
 if __name__ == "__main__":
