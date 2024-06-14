@@ -8,18 +8,18 @@ import subprocess
 from getpass import getpass
 from threading import Thread, Event
 
-MENU_HEADER = "\033[96m┌─────────────────────────────────────────────────┐\033[0m"
-MENU_FOOTER = "\033[96m└─────────────────────────────────────────────────┘\033[0m"
-MENU_TITLE = "\033[96m│           \033[93mGriMonitor Uptime Monitor\033[96m            │\033[0m"
-MENU_SEPARATOR = "\033[96m├─────────────────────────────────────────────────┤\033[0m"
+MENU_HEADER = "\033[96m┌────────────────────────────────────────────────────────────────────────────┐\033[0m"
+MENU_FOOTER = "\033[96m└────────────────────────────────────────────────────────────────────────────┘\033[0m"
+MENU_TITLE = "\033[96m│                          \033[93mGriMonitor Uptime Monitor\033[96m                         │\033[0m"
+MENU_SEPARATOR = "\033[96m├────────────────────────────────────────────────────────────────────────────┤\033[0m"
 MENU_OPTIONS = [
-    "\033[96m│ \033[92m1. Configure                                    \033[96m│\033[0m",
-    "\033[96m│ \033[92m2. Start                                        \033[96m│\033[0m",
-    "\033[96m│ \033[92m3. Stop                                         \033[96m│\033[0m",
-    "\033[96m│ \033[92m4. Success Notification Configuration           \033[96m│\033[0m",
-    "\033[96m│ \033[92m5. View Current Configuration                   \033[96m│\033[0m",
-    "\033[96m│ \033[92m6. Uninstall                                    \033[96m│\033[0m",
-    "\033[96m│ \033[92m7. Exit                                         \033[96m│\033[0m"
+    "\033[96m│ \033[92m1. Configure                                                               \033[96m│\033[0m",
+    "\033[96m│ \033[92m2. Start                                                                   \033[96m│\033[0m",
+    "\033[96m│ \033[92m3. Stop                                                                    \033[96m│\033[0m",
+    "\033[96m│ \033[92m4. Success Notification Configuration                                      \033[96m│\033[0m",
+    "\033[96m│ \033[92m5. View Current Configuration                                              \033[96m│\033[0m",
+    "\033[96m│ \033[92m6. Uninstall                                                               \033[96m│\033[0m",
+    "\033[96m│ \033[92m7. Exit                                                                    \033[96m│\033[0m"
 ]
 
 
@@ -36,13 +36,13 @@ def config_menu():
         if os.path.exists("config.txt"):
             config = read_config()
             print(MENU_HEADER)
-            print("\033[96m│               \033[93mCurrent Configuration\033[96m             │\033[0m")
+            print("\033[96m│                              \033[93mCurrent Configuration\033[96m                          │\033[0m")
             print(MENU_SEPARATOR)
-            print(f"\033[96m│ \033[92mIP Address: {config['ip']}\033[96m                           │\033[0m")
-            print(f"\033[96m│ \033[92mPort: {config['port']}\033[96m                                  │\033[0m")
-            print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes\033[96m           │\033[0m")
-            print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']}\033[96m            │\033[0m")
-            print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']}\033[96m               │\033[0m")
+            print(f"\033[96m│ \033[92mIP Address: {config['ip']:<53}\033[96m│\033[0m")
+            print(f"\033[96m│ \033[92mPort: {config['port']:<57}\033[96m│\033[0m")
+            print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<33}\033[96m│\033[0m")
+            print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[96m│\033[0m")
+            print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']:<48}\033[96m│\033[0m")
             print(MENU_FOOTER)
             update = input("\033[94mDo you want to update the configuration? (y/n): \033[0m").lower() == 'y'
         else:
@@ -81,14 +81,14 @@ def success_notification_menu():
             interval = 60
 
         print(MENU_HEADER)
-        print("\033[96m│        \033[93mSuccess Notification Configuration\033[96m       │\033[0m")
+        print("\033[96m│                     \033[93mSuccess Notification Configuration\033[96m                    │\033[0m")
         print(MENU_SEPARATOR)
-        print(f"\033[96m│ \033[92mEnabled: {enabled}\033[96m                                    │\033[0m")
-        print(f"\033[96m│ \033[92mInterval: {interval} minutes\033[96m                           │\033[0m")
+        print(f"\033[96m│ \033[92mEnabled: {str(enabled):<57}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mInterval: {interval} minutes{' ':<43}\033[96m│\033[0m")
         print(MENU_SEPARATOR)
-        print("\033[96m│ \033[92m1. Enable/Disable                               \033[96m│\033[0m")
-        print("\033[96m│ \033[92m2. Set Interval                                 \033[96m│\033[0m")
-        print("\033[96m│ \033[92m3. Back                                         \033[96m│\033[0m")
+        print("\033[96m│ \033[92m1. Enable/Disable                                                          \033[96m│\033[0m")
+        print("\033[96m│ \033[92m2. Set Interval                                                            \033[96m│\033[0m")
+        print("\033[96m│ \033[92m3. Back                                                                    \033[96m│\033[0m")
         print(MENU_FOOTER)
 
         choice = input("\033[94mEnter your choice (1-3): \033[0m")
@@ -135,25 +135,19 @@ def send_telegram_message(bot_token, chat_id, message):
         print(f"\033[91mError sending Telegram message: {e}\033[0m")
 
 
-def check_connection(ip, port, bot_token, chat_id, success_enabled, success_interval):
-    try:
-        telnetlib.Telnet(ip, port, timeout=10)
-        if success_enabled:
-            send_telegram_message(bot_token, chat_id, f"Connection to {ip}:{port} is successful.")
-    except Exception as e:
-        send_telegram_message(bot_token, chat_id, f"Connection to {ip}:{port} failed: {str(e)}")
-
-
-def monitor(stop_event):
+def check_connection(stop_event):
     config = read_config()
     success_config = read_success_config()
-    schedule.every(config["interval"]).minutes.do(
-        check_connection, config["ip"], config["port"], config["bot_token"], config["chat_id"],
-        success_config["enabled"], success_config["interval"]
-    )
+
     while not stop_event.is_set():
-        schedule.run_pending()
-        time.sleep(1)
+        try:
+            telnetlib.Telnet(config["ip"], config["port"], timeout=10)
+            if success_config["enabled"]:
+                send_telegram_message(config["bot_token"], config["chat_id"], f"Connection to {config['ip']}:{config['port']} is successful.")
+        except Exception as e:
+            send_telegram_message(config["bot_token"], config["chat_id"], f"Connection to {config['ip']}:{config['port']} failed: {str(e)}")
+        
+        time.sleep(config["interval"] * 60)
 
 
 def read_success_config():
@@ -183,7 +177,7 @@ def get_script_status(monitor_thread):
 def print_menu(script_status):
     print(MENU_HEADER)
     print(MENU_TITLE)
-    print(f"\033[96m│               \033[93mStatus: {script_status}\033[96m               │\033[0m")
+    print(f"\033[96m│                              \033[93mStatus: {script_status}\033[96m                              │\033[0m")
     print(MENU_SEPARATOR)
     for option in MENU_OPTIONS:
         print(option)
@@ -217,13 +211,13 @@ def view_current_config():
     config = read_config()
     if config:
         print(MENU_HEADER)
-        print("\033[96m│               \033[93mCurrent Configuration\033[96m             │\033[0m")
+        print("\033[96m│                              \033[93mCurrent Configuration\033[96m                          │\033[0m")
         print(MENU_SEPARATOR)
-        print(f"\033[96m│ \033[92mIP Address: {config['ip']}\033[96m                           │\033[0m")
-        print(f"\033[96m│ \033[92mPort: {config['port']}\033[96m                                  │\033[0m")
-        print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes\033[96m           │\033[0m")
-        print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']}\033[96m            │\033[0m")
-        print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']}\033[96m               │\033[0m")
+        print(f"\033[96m│ \033[92mIP Address: {config['ip']:<53}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mPort: {config['port']:<57}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<33}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']:<48}\033[96m│\033[0m")
         print(MENU_FOOTER)
     else:
         print("\033[91mNo configuration found. Please configure GriMonitor first.\033[0m")
@@ -246,7 +240,7 @@ def main():
             if config:
                 if monitor_thread is None or not monitor_thread.is_alive():
                     stop_event.clear()
-                    monitor_thread = Thread(target=monitor, args=(stop_event,))
+                    monitor_thread = Thread(target=check_connection, args=(stop_event,))
                     monitor_thread.start()
                     print("\033[92mMonitoring started.\033[0m")
                 else:
