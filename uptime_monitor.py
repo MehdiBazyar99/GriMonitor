@@ -5,6 +5,13 @@ import requests
 import schedule
 import time
 import subprocess
+import os
+import sys
+import telnetlib
+import requests
+import schedule
+import time
+import subprocess
 from getpass import getpass
 from threading import Thread
 from telegram.ext import Updater, CommandHandler
@@ -18,14 +25,6 @@ RESET = "\033[0m"
 
 CONFIG_FILE = "config.txt"
 MONITORING_THREAD = None
-MENU_OPTIONS = {
-    "1": config_menu,
-    "2": start_monitoring,
-    "3": stop_monitoring,
-    "4": lambda: config_menu(update=True),
-    "5": lambda: config_menu(change_value=True),
-    "6": uninstall
-}
 
 def install_packages():
     try:
@@ -134,6 +133,15 @@ def read_config():
     except (FileNotFoundError, IndexError, ValueError):
         print(f"{RED}Error reading configuration file. Please run 'Grimonitor install' first.{RESET}")
         sys.exit(1)
+
+MENU_OPTIONS = {
+    "1": config_menu,
+    "2": start_monitoring,
+    "3": stop_monitoring,
+    "4": lambda: config_menu(update=True),
+    "5": lambda: config_menu(change_value=True),
+    "6": uninstall
+}
 
 def send_telegram_message(bot_token, chat_id, message):
     try:
