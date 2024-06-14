@@ -26,6 +26,8 @@ def install_packages():
 def config_menu(update=False, change_value=None):
     try:
         print(f"{BLUE}Current working directory: {os.getcwd()}{RESET}")
+        
+        # Check if config.txt exists
         if os.path.exists("config.txt"):
             config = read_config()
             print(f"{GREEN}Configuration file found.{RESET}")
@@ -40,87 +42,87 @@ def config_menu(update=False, change_value=None):
             }
             print(f"{RED}Configuration file not found. Creating a new one.{RESET}")
 
+        # Update or change specific values if requested
         if update or change_value:
             if change_value:
                 value_to_change = change_value
             else:
                 value_to_change = input(f"{BLUE}Enter the value to change (ip/port/interval/bot_token/chat_id/success_interval):{RESET} ")
 
-            if value_to_change.lower() == "ip":
-                config["ip"] = input(f"{GREEN}Enter the IP address to monitor [{config['ip']}]:{RESET} ") or config["ip"]
-            elif value_to_change.lower() == "port":
-                port = input(f"{GREEN}Enter the port to monitor [{config['port']}]:{RESET} ") or config["port"]
-                try:
-                    config["port"] = int(port)
-                except ValueError:
-                    print(f"{RED}Invalid input for port. Please enter a valid number.{RESET}")
-                    return
-            elif value_to_change.lower() == "interval":
-                interval = input(f"{GREEN}Enter the interval in minutes [{config['interval']}]:{RESET} ") or config["interval"]
-                try:
-                    config["interval"] = int(interval)
-                except ValueError:
-                    print(f"{RED}Invalid input for interval. Please enter a valid number.{RESET}")
-                    return
-            elif value_to_change.lower() == "bot_token":
-                config["bot_token"] = getpass(f"{GREEN}Enter the Telegram bot token [{config['bot_token']}]:{RESET} ") or config["bot_token"]
-            elif value_to_change.lower() == "chat_id":
-                config["chat_id"] = input(f"{GREEN}Enter the Telegram chat ID [{config['chat_id']}]:{RESET} ") or config["chat_id"]
-            elif value_to_change.lower() == "success_interval":
-                success_interval = input(f"{GREEN}Enter the interval in minutes for success notifications [{config['success_interval']}]:{RESET} ") or config["success_interval"]
-                try:
-                    config["success_interval"] = int(success_interval)
-                except ValueError:
-                    print(f"{RED}Invalid input for success interval. Please enter a valid number.{RESET}")
-                    return
+            if value_to_change.lower() in config:
+                if value_to_change.lower() in ["port", "interval", "success_interval"]:
+                    new_value = input(f"{GREEN}Enter the new {value_to_change.lower()} [{config[value_to_change.lower()]}]:{RESET} ").strip()
+                    if new_value:
+                        try:
+                            config[value_to_change.lower()] = int(new_value)
+                        except ValueError:
+                            print(f"{RED}Invalid input for {value_to_change.lower()}. Please enter a valid number.{RESET}")
+                            return
+                else:
+                    config[value_to_change.lower()] = input(f"{GREEN}Enter the new {value_to_change.lower()} [{config[value_to_change.lower()]}]:{RESET} ").strip()
             else:
                 print(f"{RED}Invalid value to change. Please try again.{RESET}")
                 return
         else:
-            config["ip"] = input(f"{GREEN}Enter the IP address to monitor:{RESET} ")
-            port = input(f"{GREEN}Enter the port to monitor:{RESET} ")
+            # Prompt user to input all configuration values if not updating
+            config["ip"] = input(f"{GREEN}Enter the IP address to monitor:{RESET} ").strip()
+            port = input(f"{GREEN}Enter the port to monitor:{RESET} ").strip()
             try:
                 config["port"] = int(port)
             except ValueError:
                 print(f"{RED}Invalid input for port. Please enter a valid number.{RESET}")
                 return
-            interval = input(f"{GREEN}Enter the interval in minutes:{RESET} ")
+            interval = input(f"{GREEN}Enter the interval in minutes:{RESET} ").strip()
             try:
                 config["interval"] = int(interval)
             except ValueError:
                 print(f"{RED}Invalid input for interval. Please enter a valid number.{RESET}")
                 return
-            config["bot_token"] = getpass(f"{GREEN}Enter the Telegram bot token:{RESET} ")
-            config["chat_id"] = input(f"{GREEN}Enter the Telegram chat ID:{RESET} ")
-            success_interval = input(f"{GREEN}Enter the interval in minutes for success notifications:{RESET} ")
+            config["bot_token"] = getpass(f"{GREEN}Enter the Telegram bot token:{RESET} ").strip()
+            config["chat_id"] = input(f"{GREEN}Enter the Telegram chat ID:{RESET} ").strip()
+            success_interval = input(f"{GREEN}Enter the interval in minutes for success notifications:{RESET} ").strip()
             try:
                 config["success_interval"] = int(success_interval)
             except ValueError:
                 print(f"{RED}Invalid input for success interval. Please enter a valid number.{RESET}")
                 return
 
+        # Write updated or new configuration to config.txt
         with open("config.txt", "w") as config_file:
             config_file.write(f"{config['ip']}\n{config['port']}\n{config['interval']}\n{config['bot_token']}\n{config['chat_id']}\n{config['success_interval']}")
-            print(f"{GREEN}Configuration file created/updated successfully.{RESET}")
+            print(f"{GREEN}Configuration file updated successfully.{RESET}")
         print(f"{GREEN}Configuration saved.{RESET}")
+
     except Exception as e:
         print(f"{RED}Error during configuration: {e}{RESET}")
 
 def read_config():
+    config_keys = ["ip", "port", "interval", "bot_token", "chat_id", "success_interval"]
     try:
         with open("config.txt", "r") as config_file:
             lines = config_file.readlines()
-            return {
-                "ip": lines[0].strip(),
-                "port": int(lines[1].strip()),
-                "interval": int(lines[2].strip()),
-                "bot_token": lines[3].strip(),
-                "chat_id": lines[4].strip(),
-                "success_interval": int(lines[5].strip())
-            }
-    except (FileNotFoundError, IndexError, ValueError):
-        print(f"{RED}Error reading configuration file. Please run 'Grimonitor install' first.{RESET}")
+            if len(lines) != len(config_keys):
+                raise ValueError("Incomplete configuration file")
+            config = {}
+            for key, value in zip(config_keys, lines):
+                value = value.strip()
+                if key in ["port", "interval", "success_interval"]:
+                    config[key] = int(value)
+                else:
+                    config[key] = value
+            return config
+    except FileNotFoundError:
+        print(f"{RED}Error: Configuration file 'config.txt' not found. Creating a new one.{RESET}")
+        config_menu()
+        return read_config()  # Retry reading config after creation
+    except (ValueError, IndexError) as e:
+        print(f"{RED}Error: Invalid configuration file format. Please check 'config.txt'. Details: {e}{RESET}")
+        config_menu()
+        return read_config()  # Retry reading config after menu interaction
+    except Exception as e:
+        print(f"{RED}Error reading configuration file: {e}{RESET}")
         sys.exit(1)
+
 
 def send_telegram_message(bot_token, chat_id, message):
     try:
