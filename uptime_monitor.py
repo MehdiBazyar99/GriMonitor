@@ -32,6 +32,7 @@ def install_packages():
 
 
 def config_menu():
+    global monitor_thread, stop_event
     try:
         if os.path.exists("config.txt"):
             config = read_config()
@@ -66,12 +67,11 @@ def config_menu():
                 config_file.write(f"{ip}\n{port}\n{interval}\n{bot_token}\n{chat_id}")
             print("\033[92mConfiguration saved.\033[0m")
 
-            global monitor_thread, stop_event
             if monitor_thread is not None and monitor_thread.is_alive():
                 stop_event.set()
                 monitor_thread.join()
                 stop_event.clear()
-                monitor_thread = Thread(target=check_connection, args=(stop_event,))
+                monitor_thread = Thread(target=check_connection, args=(stop_event,), daemon=True)
                 monitor_thread.start()
                 print("\033[92mMonitoring restarted with the new configuration.\033[0m")
 
@@ -107,12 +107,14 @@ def success_notification_menu():
             if choice == "1":
                 enabled = not enabled
                 print(f"\033[92mSuccess notifications {'enabled' if enabled else 'disabled'}.\033[0m")
+                with open("success_config.txt", "w") as config_file:
+                    config_file.write(f"{enabled}\n{interval}")
             elif choice == "2":
                 interval = int(input("\033[94mEnter the success notification interval in minutes: \033[0m"))
                 print(f"\033[92mSuccess notification interval set to {interval} minutes.\033[0m")
-            elif choice == "3":
                 with open("success_config.txt", "w") as config_file:
                     config_file.write(f"{enabled}\n{interval}")
+            elif choice == "3":
                 return
             else:
                 print("\033[91mInvalid choice. Please try again.\033[0m")
@@ -250,7 +252,7 @@ def main():
             if config:
                 if monitor_thread is None or not monitor_thread.is_alive():
                     stop_event.clear()
-                    monitor_thread = Thread(target=check_connection, args=(stop_event,))
+                    monitor_thread = Thread(target=check_connection, args=(stop_event,), daemon=True)
                     monitor_thread.start()
                     print("\033[92mMonitoring started.\033[0m")
                 else:
@@ -260,7 +262,7 @@ def main():
         elif choice == "3":
             if monitor_thread is not None and monitor_thread.is_alive():
                 stop_event.set()
-                monitor_thread.join()
+                monitor_thread.join(timeout=5)
                 print("\033[92mMonitoring stopped.\033[0m")
             else:
                 print("\033[93mMonitoring is not currently running.\033[0m")
@@ -273,7 +275,7 @@ def main():
         elif choice == "7":
             if monitor_thread is not None and monitor_thread.is_alive():
                 stop_event.set()
-                monitor_thread.join()
+                monitor_thread.join(timeout=5)
             print("\033[92mExiting...\033[0m")
             break
         else:
