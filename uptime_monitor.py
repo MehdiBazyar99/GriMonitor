@@ -80,7 +80,6 @@ def config_menu(monitor_thread, stop_event):
 
     return monitor_thread, stop_event
 
-
 def success_notification_menu():
     while True:
         try:
@@ -255,7 +254,7 @@ def view_realtime_operation(monitor_thread):
             except Exception as e:
                 print(f"\033[91mConnection to {config['ip']}:{config['port']} failed: {str(e)}\033[0m")
 
-            time.sleep(config["interval"] * 60)
+            time.sleep(1)  # Adjust the sleep time as needed for better responsiveness
     except KeyboardInterrupt:
         print("\033[96mExiting real-time operation view.\033[0m")
 
@@ -285,9 +284,10 @@ def main():
             else:
                 print("\033[91mPlease configure GriMonitor first.\033[0m")
         elif choice == "3":
-            if monitor_thread is not None and monitor_thread.is_alive():
+            if monitor_thread is not None:
                 stop_event.set()
                 monitor_thread.join(timeout=5)
+                monitor_thread = None
                 print("\033[92mMonitoring stopped.\033[0m")
             else:
                 print("\033[93mMonitoring is not currently running.\033[0m")
