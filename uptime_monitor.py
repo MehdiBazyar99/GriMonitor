@@ -8,7 +8,6 @@ import subprocess
 from getpass import getpass
 from threading import Thread
 from telegram.ext import Updater, CommandHandler
-import importlib
 
 # ANSI escape codes for colors
 BLUE = "\033[94m"
@@ -17,157 +16,12 @@ YELLOW = "\033[93m"
 RED = "\033[91m"
 RESET = "\033[0m"
 
-CONFIG_FILE = "config.txt"
-def config_menu(update=False, change_value=None):
-    try:
-        if os.path.exists("config.txt"):
-            config = read_config()
-        else:
-            def install_packages():
-                packages = ["requests", "schedule", "python-telegram-bot"]
-                for package in packages:
-                    try:
-                        importlib.import_module(package)
-                    except ImportError:
-                        print(f"Installing {package}...")
-                        try:
-                            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-                            print(f"{package} installed successfully.")
-                        except subprocess.CalledProcessError as e:
-                            print(f"Error installing {package}: {e}")
-                            sys.exit(1)
-                    else:
-                        print(f"{package} is already installed.")
-
-        if update or change_value:
-            if change_value:
-                value_to_change = change_value
-            else:
-                value_to_change = input(f"{BLUE}Enter the value to change (ip/port/interval/bot_token/chat_id/success_interval):{RESET} ")
-
-            if value_to_change.lower() == "ip":
-                config["ip"] = input(f"{GREEN}Enter the IP address to monitor [{config['ip']}]:{RESET} ") or config["ip"]
-            elif value_to_change.lower() == "port":
-                port = input(f"{GREEN}Enter the port to monitor [{config['port']}]:{RESET} ") or config["port"]
-                try:
-                    config["port"] = int(port)
-                except ValueError:
-                    print(f"{RED}Invalid input for port. Please enter a valid number.{RESET}")
-                    return
-            elif value_to_change.lower() == "interval":
-                interval = input(f"{GREEN}Enter the interval in minutes [{config['interval']}]:{RESET} ") or config["interval"]
-                try:
-                    config["interval"] = int(interval)
-                except ValueError:
-                    print(f"{RED}Invalid input for interval. Please enter a valid number.{RESET}")
-                    return
-            elif value_to_change.lower() == "bot_token":
-                config["bot_token"] = getpass(f"{GREEN}Enter the Telegram bot token [{config['bot_token']}]:{RESET} ") or config["bot_token"]
-            elif value_to_change.lower() == "chat_id":
-                config["chat_id"] = input(f"{GREEN}Enter the Telegram chat ID [{config['chat_id']}]:{RESET} ") or config["chat_id"]
-            elif value_to_change.lower() == "success_interval":
-                success_interval = input(f"{GREEN}Enter the interval in minutes for success notifications [{config['success_interval']}]:{RESET} ") or config["success_interval"]
-                try:
-                    config["success_interval"] = int(success_interval)
-                except ValueError:
-                    print(f"{RED}Invalid input for success interval. Please enter a valid number.{RESET}")
-                    return
-            else:
-                print(f"{RED}Invalid value to change. Please try again.{RESET}")
-                return
-        else:
-            config["ip"] = input(f"{GREEN}Enter the IP address to monitor:{RESET} ")
-            port = input(f"{GREEN}Enter the port to monitor:{RESET} ")
-            try:
-                config["port"] = int(port)
-            except ValueError:
-                print(f"{RED}Invalid input for port. Please enter a valid number.{RESET}")
-                return
-            interval = input(f"{GREEN}Enter the interval in minutes:{RESET} ")
-            try:
-                config["interval"] = int(interval)
-            except ValueError:
-                print(f"{RED}Invalid input for interval. Please enter a valid number.{RESET}")
-                return
-            config["bot_token"] = getpass(f"{GREEN}Enter the Telegram bot token:{RESET} ")
-            config["chat_id"] = input(f"{GREEN}Enter the Telegram chat ID:{RESET} ")
-            success_interval = input(f"{GREEN}Enter the interval in minutes for success notifications:{RESET} ")
-            try:
-                config["success_interval"] = int(success_interval)
-            except ValueError:
-                print(f"{RED}Invalid input for success interval. Please enter a valid number.{RESET}")
-                return
-
-        with open("config.txt", "w") as config_file:
-            config_file.write(f"{config['ip']}\n{config['port']}\n{config['interval']}\n{config['bot_token']}\n{config['chat_id']}\n{config['success_interval']}")
-        print(f"{GREEN}Configuration saved.{RESET}")
-    except Exception as e:
-        print(f"{RED}Error during configuration: {e}{RESET}")
-
-def start_monitoring():
-    config = read_config()
-    monitoring_thread = Thread(target=monitor, args=(config,))
-    monitoring_thread.start()
-    print(f"{GREEN}Monitoring started in the background.{RESET}")
-
-def stop_monitoring():
-    schedule.clear()
-    print(f"{RED}Monitoring stopped.{RESET}")
-
-def uninstall():
-    if check_config_exists():
-        os.remove(CONFIG_FILE)
-        print(f"{GREEN}Uninstalled.{RESET}")
-    else:
-        print(f"{RED}No configuration file found.{RESET}")
-
-MENU_OPTIONS = {
-    "1": config_menu,
-    "2": start_monitoring,
-    "3": stop_monitoring,
-    "4": lambda: config_menu(update=True),
-    "5": lambda: config_menu(change_value=True),
-    "6": uninstall
-}
-
-def start_monitoring():
-    config = read_config()
-    monitoring_thread = Thread(target=monitor, args=(config,))
-    monitoring_thread.start()
-    print(f"{GREEN}Monitoring started in the background.{RESET}")
-
-def stop_monitoring():
-    schedule.clear()
-    print(f"{RED}Monitoring stopped.{RESET}")
-
-def uninstall():
-    if check_config_exists():
-        os.remove(CONFIG_FILE)
-        print(f"{GREEN}Uninstalled.{RESET}")
-    else:
-        print(f"{RED}No configuration file found.{RESET}")
-
-MENU_OPTIONS = {
-    "1": config_menu,
-    "2": start_monitoring,
-    "3": stop_monitoring,
-    "4": lambda: config_menu(update=True),
-    "5": lambda: config_menu(change_value=True),
-    "6": uninstall
-}
-
 def install_packages():
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "schedule", "python-telegram-bot"])
     except subprocess.CalledProcessError as e:
         print(f"Error installing packages: {e}")
         sys.exit(1)
-
-def check_config_exists():
-    if not os.path.exists(CONFIG_FILE):
-        print(f"{RED}Please run 'Grimonitor install' first.{RESET}")
-        return False
-    return True
 
 def config_menu(update=False, change_value=None):
     try:
@@ -332,17 +186,10 @@ def handle_telegram_command(update, context):
     else:
         send_telegram_message(config["bot_token"], config["chat_id"], f"{RED}Invalid command. Available commands: /start, /stop, /ping <port>{RESET}")
 
-def uninstall():
-    if check_config_exists():
-        os.remove(CONFIG_FILE)
-        print(f"{GREEN}Uninstalled.{RESET}")
-    else:
-        print(f"{RED}No configuration file found.{RESET}")
-
 def main():
     install_packages()
 
-    updater = Updater(read_config()["bot_token"], use_context=True)
+    updater = Updater(token=read_config()["bot_token"], use_context=True)
     dispatcher = updater.dispatcher
     dispatcher.add_handler(CommandHandler("start", handle_telegram_command))
     dispatcher.add_handler(CommandHandler("stop", handle_telegram_command))
@@ -353,10 +200,31 @@ def main():
         print_menu()
         choice = input(f"{GREEN}Enter your choice (1-7):{RESET} ")
 
-        if choice in MENU_OPTIONS:
-            if choice != "1" and not check_config_exists():
-                continue
-            MENU_OPTIONS[choice]()
+        if choice == "1":
+            config_menu()
+        elif choice == "2":
+            if os.path.exists("config.txt"):
+                start_monitoring()
+            else:
+                print(f"{RED}Please run 'Grimonitor install' first.{RESET}")
+        elif choice == "3":
+            stop_monitoring()
+        elif choice == "4":
+            if os.path.exists("config.txt"):
+                config_menu(update=True)
+            else:
+                print(f"{RED}Please run 'Grimonitor install' first.{RESET}")
+        elif choice == "5":
+            if os.path.exists("config.txt"):
+                config_menu(change_value=True)
+            else:
+                print(f"{RED}Please run 'Grimonitor install' first.{RESET}")
+        elif choice == "6":
+            if os.path.exists("config.txt"):
+                os.remove("config.txt")
+                print(f"{GREEN}Uninstalled.{RESET}")
+            else:
+                print(f"{RED}No configuration file found.{RESET}")
         elif choice == "7":
             print(f"{GREEN}Exiting...{RESET}")
             updater.stop()
