@@ -8,6 +8,7 @@ import subprocess
 from getpass import getpass
 from threading import Thread, Event
 from daemon import DaemonContext
+from daemon.pidfile import PIDLockFile
 
 MENU_HEADER = "\033[96m┌────────────────────────────────────────────────────────────────────────────┐\033[0m"
 MENU_FOOTER = "\033[96m└────────────────────────────────────────────────────────────────────────────┘\033[0m"
@@ -24,14 +25,12 @@ MENU_OPTIONS = [
     "\033[96m│ \033[92m8. Exit                                                                    \033[96m│\033[0m"
 ]
 
-
 def install_packages():
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "schedule", "python-daemon"])
     except subprocess.CalledProcessError as e:
         print(f"\033[91mError installing packages: {e}\033[0m")
         sys.exit(1)
-
 
 def config_menu(monitor_thread, stop_event):
     try:
@@ -85,7 +84,6 @@ def config_menu(monitor_thread, stop_event):
     print(MENU_FOOTER)
     return monitor_thread, stop_event
 
-
 def success_notification_menu():
     while True:
         try:
@@ -129,7 +127,6 @@ def success_notification_menu():
         except Exception as e:
             print(f"\033[91mError during success notification configuration: {e}\033[0m")
 
-
 def read_config():
     try:
         with open("config.txt", "r") as config_file:
@@ -144,7 +141,6 @@ def read_config():
     except (FileNotFoundError, IndexError, ValueError):
         return {}
 
-
 def send_telegram_message(bot_token, chat_id, message):
     try:
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -152,7 +148,6 @@ def send_telegram_message(bot_token, chat_id, message):
         requests.post(url, data=data)
     except requests.exceptions.RequestException as e:
         print(f"\033[91mError sending Telegram message: {e}\033[0m")
-
 
 def check_connection(stop_event):
     while not stop_event.is_set():
@@ -168,7 +163,6 @@ def check_connection(stop_event):
 
         time.sleep(config["interval"] * 60)
 
-
 def read_success_config():
     try:
         with open("success_config.txt", "r") as config_file:
@@ -183,7 +177,6 @@ def read_success_config():
             "interval": 60
         }
 
-
 def get_script_status(monitor_thread):
     if not os.path.exists("config.txt"):
         return "Not Configured"
@@ -191,7 +184,6 @@ def get_script_status(monitor_thread):
         return "Stopped"
     else:
         return "Running"
-
 
 def print_menu(script_status):
     print(MENU_HEADER)
@@ -201,7 +193,6 @@ def print_menu(script_status):
     for option in MENU_OPTIONS:
         print(option)
     print(MENU_FOOTER)
-
 
 def uninstall():
     try:
@@ -225,7 +216,6 @@ def uninstall():
     except Exception as e:
         print(f"\033[91mError during uninstallation: {e}\033[0m")
 
-
 def view_current_config():
     config = read_config()
     if config:
@@ -234,13 +224,12 @@ def view_current_config():
         print(MENU_SEPARATOR)
         print(f"\033[96m│ \033[92mIP Address: {config['ip']:<53}\033[96m│\033[0m")
         print(f"\033[96m│ \033[92mPort: {config['port']:<57}\033[96m│\033[0m")
-        print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<40}\033[96m│\033[0m")
+        print(f"\033[96m│ \033[92mMonitoring Interval: {config['interval']} minutes{' ':<40}\033[0m│\033[0m")
         print(f"\033[96m│ \033[92mTelegram Bot Token: {config['bot_token']:<44}\033[96m│\033[0m")
         print(f"\033[96m│ \033[92mTelegram Chat ID: {config['chat_id']:<48}\033[96m│\033[0m")
         print(MENU_FOOTER)
     else:
         print("\033[91mNo configuration found. Please configure GriMonitor first.\033[0m")
-
 
 def view_realtime_operation(monitor_thread):
     if monitor_thread is None or not monitor_thread.is_alive():
@@ -264,11 +253,9 @@ def view_realtime_operation(monitor_thread):
     except KeyboardInterrupt:
         print("\033[96mExiting real-time operation view.\033[0m")
 
-
 def start_monitoring_daemon(stop_event):
-    with DaemonContext():
+    with DaemonContext(pidfile=PIDLockFile('/tmp/monitoring_daemon.pid')):
         check_connection(stop_event)
-
 
 def main():
     install_packages()
@@ -324,7 +311,6 @@ def main():
             stop_event.set()
             monitor_thread.join(timeout=5)
         print("\033[92mExiting...\033[0m")
-
 
 if __name__ == "__main__":
     main()
