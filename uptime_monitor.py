@@ -4,15 +4,7 @@ import telnetlib
 import requests
 import schedule
 import time
-import subprocess
 from getpass import getpass
-
-def install_packages():
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "schedule"])
-    except subprocess.CalledProcessError as e:
-        print(f"Error installing packages: {e}")
-        sys.exit(1)
 
 def config_menu(update=False):
     try:
@@ -87,38 +79,26 @@ def monitor():
 
 def print_menu():
     print("GriMonitor Uptime Monitor")
-    print("1. Install")
-    print("2. Start")
-    print("3. Update")
-    print("4. Uninstall")
-    print("5. Exit")
+    print("1. Start")
+    print("2. Update")
+    print("3. Exit")
 
 def main():
-    install_packages()
-
     while True:
         print_menu()
-        choice = input("Enter your choice (1-5): ")
+        choice = input("Enter your choice (1-3): ")
 
         if choice == "1":
-            config_menu()
-        elif choice == "2":
             if os.path.exists("config.txt"):
                 monitor()
             else:
                 print("Please run 'Grimonitor install' first.")
-        elif choice == "3":
+        elif choice == "2":
             if os.path.exists("config.txt"):
                 config_menu(update=True)
             else:
                 print("Please run 'Grimonitor install' first.")
-        elif choice == "4":
-            if os.path.exists("config.txt"):
-                os.remove("config.txt")
-                print("Uninstalled.")
-            else:
-                print("No configuration file found.")
-        elif choice == "5":
+        elif choice == "3":
             print("Exiting...")
             break
         else:
