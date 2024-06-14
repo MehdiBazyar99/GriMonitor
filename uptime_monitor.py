@@ -79,7 +79,7 @@ def config_menu(monitor_thread, stop_event):
 
             if monitor_thread is not None and monitor_thread.is_alive():
                 stop_event.set()
-                monitor_thread.join(timeout=5)
+                monitor_thread.join()
                 stop_event.clear()
                 monitor_thread = None
 
@@ -175,7 +175,6 @@ def send_telegram_message(bot_token, chat_id, message):
     except requests.exceptions.RequestException as e:
         logging.error(f"Error sending Telegram message: {e}")
         print(f"\033[91mError sending Telegram message: {e}\033[0m")
-
 
 def check_connection(stop_event):
     while not stop_event.is_set():
@@ -314,12 +313,14 @@ def main():
 
             if choice == "1":
                 monitor_thread, stop_event = config_menu(monitor_thread, stop_event)
+                if monitor_thread is None:
+                    monitor_thread = Thread(target=check_connection, args=(stop_event,), daemon=True)
             elif choice == "2":
                 config = read_config()
                 if config:
                     if monitor_thread is None or not monitor_thread.is_alive():
                         stop_event.clear()
-                        monitor_thread = Thread(target=start_monitoring_daemon, args=(stop_event,), daemon=True)
+                        monitor_thread = Thread(target=check_connection, args=(stop_event,), daemon=True)
                         monitor_thread.start()
                         logging.info("Monitoring started.")
                         print("\033[92mMonitoring started.\033[0m")
@@ -332,7 +333,7 @@ def main():
             elif choice == "3":
                 if monitor_thread is not None:
                     stop_event.set()
-                    monitor_thread.join(timeout=5)
+                    monitor_thread.join()
                     monitor_thread = None
                     logging.info("Monitoring stopped.")
                     print("\033[92mMonitoring stopped.\033[0m")
@@ -350,7 +351,7 @@ def main():
             elif choice == "8":
                 if monitor_thread is not None and monitor_thread.is_alive():
                     stop_event.set()
-                    monitor_thread.join(timeout=5)
+                    monitor_thread.join()
                 logging.info("Exiting GriMonitor.")
                 print("\033[92mExiting...\033[0m")
                 break
@@ -360,10 +361,9 @@ def main():
     except KeyboardInterrupt:
         if monitor_thread is not None and monitor_thread.is_alive():
             stop_event.set()
-            monitor_thread.join(timeout=5)
+            monitor_thread.join()
         logging.info("Exiting GriMonitor due to keyboard interrupt.")
         print("\033[92mExiting...\033[0m")
-
 
 if __name__ == "__main__":
     main()
