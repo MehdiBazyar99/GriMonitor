@@ -254,7 +254,7 @@ def view_realtime_operation(monitor_thread):
             except Exception as e:
                 print(f"\033[91mConnection to {config['ip']}:{config['port']} failed: {str(e)}\033[0m")
 
-            time.sleep(1)  # Adjust the sleep time as needed for better responsiveness
+            time.sleep(5)  # Adjust the sleep time as needed for better responsiveness
     except KeyboardInterrupt:
         print("\033[96mExiting real-time operation view.\033[0m")
 
