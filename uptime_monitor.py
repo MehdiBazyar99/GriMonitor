@@ -4,36 +4,48 @@ import telnetlib
 import requests
 import schedule
 import time
+import subprocess
 from getpass import getpass
+from threading import Thread, Event
+
+
+def install_packages():
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "requests", "schedule"])
+    except subprocess.CalledProcessError as e:
+        print(f"\033[91mError installing packages: {e}\033[0m")
+        sys.exit(1)
+
 
 def config_menu(update=False):
     try:
         if update and os.path.exists("config.txt"):
             config = read_config()
-            ip = input(f"Enter the IP address to monitor [{config['ip']}]: ") or config['ip']
-            port = input(f"Enter the port to monitor [{config['port']}]: ") or config['port']
-            interval = input(f"Enter the interval in minutes [{config['interval']}]: ") or config['interval']
-            bot_token = getpass(f"Enter the Telegram bot token [{config['bot_token']}]: ") or config['bot_token']
-            chat_id = input(f"Enter the Telegram chat ID [{config['chat_id']}]: ") or config['chat_id']
+            ip = input(f"\033[94mEnter the IP address to monitor [{config['ip']}]: \033[0m") or config['ip']
+            port = input(f"\033[94mEnter the port to monitor [{config['port']}]: \033[0m") or config['port']
+            interval = input(f"\033[94mEnter the interval in minutes [{config['interval']}]: \033[0m") or config['interval']
+            bot_token = getpass(f"\033[94mEnter the Telegram bot token [{config['bot_token']}]: \033[0m") or config['bot_token']
+            chat_id = input(f"\033[94mEnter the Telegram chat ID [{config['chat_id']}]: \033[0m") or config['chat_id']
         else:
-            ip = input("Enter the IP address to monitor: ")
-            port = input("Enter the port to monitor: ")
-            interval = input("Enter the interval in minutes: ")
-            bot_token = getpass("Enter the Telegram bot token: ")
-            chat_id = input("Enter the Telegram chat ID: ")
+            ip = input("\033[94mEnter the IP address to monitor: \033[0m")
+            port = input("\033[94mEnter the port to monitor: \033[0m")
+            interval = input("\033[94mEnter the interval in minutes: \033[0m")
+            bot_token = getpass("\033[94mEnter the Telegram bot token: \033[0m")
+            chat_id = input("\033[94mEnter the Telegram chat ID: \033[0m")
 
         try:
             port = int(port)
             interval = int(interval)
         except ValueError:
-            print("Invalid input for port or interval. Please enter valid numbers.")
+            print("\033[91mInvalid input for port or interval. Please enter valid numbers.\033[0m")
             return
 
         with open("config.txt", "w") as config_file:
             config_file.write(f"{ip}\n{port}\n{interval}\n{bot_token}\n{chat_id}")
-        print("Configuration saved.")
+        print("\033[92mConfiguration saved.\033[0m")
     except Exception as e:
-        print(f"Error during configuration: {e}")
+        print(f"\033[91mError during configuration: {e}\033[0m")
+
 
 def read_config():
     try:
@@ -47,8 +59,9 @@ def read_config():
                 "chat_id": lines[4].strip()
             }
     except (FileNotFoundError, IndexError, ValueError):
-        print("Error reading configuration file. Please run 'Grimonitor install' first.")
+        print("\033[91mError reading configuration file. Please run 'Grimonitor install' first.\033[0m")
         sys.exit(1)
+
 
 def send_telegram_message(bot_token, chat_id, message):
     try:
@@ -56,7 +69,8 @@ def send_telegram_message(bot_token, chat_id, message):
         data = {"chat_id": chat_id, "text": message}
         requests.post(url, data=data)
     except requests.exceptions.RequestException as e:
-        print(f"Error sending Telegram message: {e}")
+        print(f"\033[91mError sending Telegram message: {e}\033[0m")
+
 
 def check_connection(ip, port, bot_token, chat_id):
     try:
@@ -64,45 +78,85 @@ def check_connection(ip, port, bot_token, chat_id):
     except Exception as e:
         send_telegram_message(bot_token, chat_id, f"Connection to {ip}:{port} failed: {str(e)}")
 
-def monitor():
-    try:
-        config = read_config()
-        schedule.every(config["interval"]).minutes.do(
-            check_connection, config["ip"], config["port"], config["bot_token"], config["chat_id"]
-        )
-        print("Monitoring started. Press Ctrl+C to stop.")
-        while True:
-            schedule.run_pending()
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("Monitoring stopped.")
+
+def monitor(stop_event):
+    config = read_config()
+    schedule.every(config["interval"]).minutes.do(
+        check_connection, config["ip"], config["port"], config["bot_token"], config["chat_id"]
+    )
+    while not stop_event.is_set():
+        schedule.run_pending()
+        time.sleep(1)
+
 
 def print_menu():
-    print("GriMonitor Uptime Monitor")
-    print("1. Start")
-    print("2. Update")
-    print("3. Exit")
+    print("\033[96m┌─────────────────────────────────────────────────┐\033[0m")
+    print("\033[96m│           \033[93mGriMonitor Uptime Monitor\033[96m            │\033[0m")
+    print("\033[96m├─────────────────────────────────────────────────┤\033[0m")
+    print("\033[96m│ \033[92m1. Install                                      \033[96m│\033[0m")
+    print("\033[96m│ \033[92m2. Start                                        \033[96m│\033[0m")
+    print("\033[96m│ \033[92m3. Stop                                         \033[96m│\033[0m")
+    print("\033[96m│ \033[92m4. Status                                       \033[96m│\033[0m")
+    print("\033[96m│ \033[92m5. Update                                       \033[96m│\033[0m")
+    print("\033[96m│ \033[92m6. Uninstall                                    \033[96m│\033[0m")
+    print("\033[96m│ \033[92m7. Exit                                         \033[96m│\033[0m")
+    print("\033[96m└─────────────────────────────────────────────────┘\033[0m")
+
 
 def main():
+    install_packages()
+    stop_event = Event()
+    monitor_thread = None
+
     while True:
         print_menu()
-        choice = input("Enter your choice (1-3): ")
+        choice = input("\033[94mEnter your choice (1-7): \033[0m")
 
         if choice == "1":
-            if os.path.exists("config.txt"):
-                monitor()
-            else:
-                print("Please run 'Grimonitor install' first.")
+            config_menu()
         elif choice == "2":
+            if os.path.exists("config.txt"):
+                if monitor_thread is None or not monitor_thread.is_alive():
+                    stop_event.clear()
+                    monitor_thread = Thread(target=monitor, args=(stop_event,))
+                    monitor_thread.start()
+                    print("\033[92mMonitoring started.\033[0m")
+                else:
+                    print("\033[93mMonitoring is already running.\033[0m")
+            else:
+                print("\033[91mPlease run 'Grimonitor install' first.\033[0m")
+        elif choice == "3":
+            if monitor_thread is not None and monitor_thread.is_alive():
+                stop_event.set()
+                monitor_thread.join()
+                print("\033[92mMonitoring stopped.\033[0m")
+            else:
+                print("\033[93mMonitoring is not currently running.\033[0m")
+        elif choice == "4":
+            if monitor_thread is not None and monitor_thread.is_alive():
+                print("\033[92mMonitoring is currently running.\033[0m")
+            else:
+                print("\033[93mMonitoring is not currently running.\033[0m")
+        elif choice == "5":
             if os.path.exists("config.txt"):
                 config_menu(update=True)
             else:
-                print("Please run 'Grimonitor install' first.")
-        elif choice == "3":
-            print("Exiting...")
+                print("\033[91mPlease run 'Grimonitor install' first.\033[0m")
+        elif choice == "6":
+            if os.path.exists("config.txt"):
+                os.remove("config.txt")
+                print("\033[92mUninstalled.\033[0m")
+            else:
+                print("\033[93mNo configuration file found.\033[0m")
+        elif choice == "7":
+            if monitor_thread is not None and monitor_thread.is_alive():
+                stop_event.set()
+                monitor_thread.join()
+            print("\033[92mExiting...\033[0m")
             break
         else:
-            print("Invalid choice. Please try again.")
+            print("\033[91mInvalid choice. Please try again.\033[0m")
+
 
 if __name__ == "__main__":
     main()
