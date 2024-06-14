@@ -25,6 +25,7 @@ def install_packages():
 
 def config_menu(update=False, change_value=None):
     try:
+        print(f"{BLUE}Current working directory: {os.getcwd()}{RESET}")
         if os.path.exists("config.txt"):
             config = read_config()
             print(f"{GREEN}Configuration file found.{RESET}")
@@ -100,7 +101,7 @@ def config_menu(update=False, change_value=None):
 
         with open("config.txt", "w") as config_file:
             config_file.write(f"{config['ip']}\n{config['port']}\n{config['interval']}\n{config['bot_token']}\n{config['chat_id']}\n{config['success_interval']}")
-            print(f"{GREEN}Configuration saved to config.txt{RESET}")
+            print(f"{GREEN}Configuration file created successfully.{RESET}")
         print(f"{GREEN}Configuration saved.{RESET}")
     except Exception as e:
         print(f"{RED}Error during configuration: {e}{RESET}")
